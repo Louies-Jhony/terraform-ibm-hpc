@@ -52,3 +52,10 @@
       replace: |
         # \1# \2# \3# \4# \5# \6# \7
     when: toolkit_path.stat.exists
+
+  - name: Comment out the Configure PM Common script block main task
+    ansible.builtin.replace:
+      path: "{{ ansible_tool_kit_role_path }}/deploy-lsf-clients/tasks/main.yml"
+      regexp: '^\s*- name: Call the Configure PM Common script'
+      replace: '#- name: Call the Configure PM Common script'
+    when: toolkit_path.stat.exists
