@@ -28,8 +28,13 @@
   - name: Comment out the stat_js_conf line in configure_master.yml
     ansible.builtin.replace:
       path: "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/configure_master.yml"
-      regexp: '^\s*- stat_js_conf\.stat\.exists\s*==\s*True'
-      replace: '# - stat_js_conf.stat.exists == True'
+      regexp: |
+        (?m)^(\s*)- include_tasks: configure_pm\.yml\n\1  when:\n(?:\1    #?.*\n)*\1    - LSF_SUITE_EDITION != 'LSF Suite for Workgroup'
+      replace: |
+        \1# - include_tasks: configure_pm.yml
+        \1#   when:
+        \1#     # - stat_js_conf.stat.exists == True
+        \1#     - LSF_SUITE_EDITION != 'LSF Suite for Workgroup'
     when: toolkit_path.stat.exists
 
   - name: Comment out the setup_sharedir_ppm task block in post_deploy_primary.yml
