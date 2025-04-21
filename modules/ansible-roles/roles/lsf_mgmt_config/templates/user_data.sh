@@ -410,4 +410,4 @@ else
   echo "Cloud Logs configuration skipped since observability logs for compute is not enabled"
 fi
 
-echo "END $(date '+%Y-%m-%d %H:%M:%S')" >> "$logfile"
+echo "COMPLETED $(date '+%Y-%m-%d %H:%M:%S')" >> $logfile
