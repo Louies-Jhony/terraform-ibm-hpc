@@ -1,8 +1,10 @@
 ansible_tool_kit_path: "/opt/ibm/lsf_installer"
 pm_insert_lines: |
+
     stream_dir={{ LSF_TOP }}/work/{{ LSF.my_cluster_name }}/logdir/stream
     stream_file=${stream_dir}/lsb.stream; 
     mkdir -p ${stream_dir}; 
     touch ${stream_file}; 
     chown -R lsfadmin ${stream_dir}; 
     chmod 644 ${stream_dir};
+    
