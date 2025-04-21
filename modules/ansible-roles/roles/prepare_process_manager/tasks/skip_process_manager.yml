@@ -27,7 +27,7 @@
 
   - name: Comment out the configure_pm.yml
     shell: |
-      sed -i.bak "/# Configure PM/,/^\s*-\s*LSF_SUITE_EDITION\s*!=\s*'LSF Suite for Workgroup'/d" {{ ansible_tool_kit_role_path }}/configure_master.yml
+      sed -i.bak "/# Configure PM/,/^\s*-\s*LSF_SUITE_EDITION\s*!=\s*'LSF Suite for Workgroup'/d" {{ ansible_tool_kit_role_path }}/deploy-gui/tasks/configure_master.yml
     args:
       executable: /bin/bash
     when: toolkit_path.stat.exists
