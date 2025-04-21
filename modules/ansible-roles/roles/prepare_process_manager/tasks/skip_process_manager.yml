@@ -25,16 +25,11 @@
       insertafter: 'export MYSQL_JDBC_DRIVER_JAR='
     when: toolkit_path.stat.exists
 
-  - name: Comment out the stat_js_conf line in configure_master.yml
-    ansible.builtin.replace:
-      path: "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/configure_master.yml"
-      regexp: |
-        (?m)^(\s*)- include_tasks: configure_pm\.yml\n\1  when:\n(?:\1    #?.*\n)*\1    - LSF_SUITE_EDITION != 'LSF Suite for Workgroup'
-      replace: |
-        \1# - include_tasks: configure_pm.yml
-        \1#   when:
-        \1#     # - stat_js_conf.stat.exists == True
-        \1#     - LSF_SUITE_EDITION != 'LSF Suite for Workgroup'
+  - name: Comment out the configure_pm.yml
+    shell: |
+      sed -i.bak "/# Configure PM/,/^\s*-\s*LSF_SUITE_EDITION\s*!=\s*'LSF Suite for Workgroup'/d" {{ ansible_tool_kit_role_path }}/configure_master.yml
+    args:
+      executable: /bin/bash
     when: toolkit_path.stat.exists
 
   - name: Comment out the setup_sharedir_ppm task block in post_deploy_primary.yml
