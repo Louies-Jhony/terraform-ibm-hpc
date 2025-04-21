@@ -11,7 +11,7 @@
 
   - name: Add stream directory setup after the MYSQL_JDBC_DRIVER_JAR export
     blockinfile:
-      path: "{{ ansible_tool_kit_path }}/playbook/roles/deploy-gui/tasks/install_pac.yml"
+      path: "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/install_pac.yml"
       block: |
         {% raw %}
             stream_dir={{ LSF_TOP }}/work/{{ LSF.my_cluster_name }}/logdir/stream
@@ -27,14 +27,14 @@
 
   - name: Comment out the stat_js_conf line in configure_master.yml
     ansible.builtin.replace:
-      path: "{{ ansible_tool_kit_path }}/playbook/roles/deploy-gui/tasks/configure_master.yml"
+      path: "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/configure_master.yml"
       regexp: '^\s*- stat_js_conf\.stat\.exists\s*==\s*True'
       replace: '# - stat_js_conf.stat.exists == True'
     when: toolkit_path.stat.exists
 
   - name: Comment out the setup_sharedir_ppm task block in post_deploy_primary.yml
     ansible.builtin.replace:
-      path: "{{ ansible_tool_kit_path }}/playbook/roles/deploy-gui/tasks/post_deploy_primary.yml"
+      path: "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/post_deploy_primary.yml"
       regexp: |
         (?m)^(\s*)- include_tasks: setup_sharedir_ppm\.yml\n\1  when:\n\1    - lsf_shared_dir != "none"\n\1    - LSF_SUITE_EDITION != 'LSF Suite for Workgroup'
       replace: |
@@ -46,7 +46,7 @@
 
   - name: Comment out the Configure PM Common script block in main.yml
     ansible.builtin.replace:
-      path: "/opt/ibm/lsf_installer/playbook/roles/deploy-lsf-clients/tasks/main.yml"
+      path: "{{ ansible_tool_kit_role_path }}/deploy-lsf-clients/tasks/main.yml"
       regexp: |
         (?m)^(\s*- name: Call the Configure PM Common script.*\n)(\s*include_tasks: \.\./\.\./deploy-gui/tasks/configure_pm_common\.yml.*\n)(\s*when:.*\n)(\s*- nfs_deployment == False.*\n)(\s*- LSF_SUITE_EDITION != 'LSF Suite for Workgroup'.*\n)(\s*- groups\.GUI_Hosts \| length > 0.*\n)(\s*- inventory_hostname not in groups.GUI_Hosts.*\n)
       replace: |
