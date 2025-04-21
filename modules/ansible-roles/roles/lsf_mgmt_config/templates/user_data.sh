@@ -122,6 +122,7 @@ if [ -n "${custom_file_shares}" ]; then
   done
 fi
 echo "Setting custom file shares is completed." >> $logfile
+# shellcheck disable=SC1073
 {% endraw %}
 # shellcheck enable=SC1009,SC1054,SC1083
 
