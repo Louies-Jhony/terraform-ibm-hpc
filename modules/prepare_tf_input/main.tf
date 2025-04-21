@@ -42,6 +42,7 @@ resource "local_sensitive_file" "prepare_tf_input" {
   "ldap_user_password": ${jsonencode(var.ldap_user_password)},
   "ldap_server": ${jsonencode(var.ldap_server)},
   "ldap_server_cert": ${jsonencode(var.ldap_server_cert)},
+  "enable_process_manager": ${var.enable_process_manager},
   "scc_enable": ${var.scc_enable},
   "scc_profile": "${var.scc_profile}",
   "scc_location": "${var.scc_location}",

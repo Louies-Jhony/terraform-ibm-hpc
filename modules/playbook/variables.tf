@@ -75,3 +75,9 @@ variable "cloudlogs_provision" {
   type        = bool
   default     = false
 }
+
+variable "enable_process_manager" {
+  type        = bool
+  default     = false
+  description = "Enable Process Manager configuration"
+}

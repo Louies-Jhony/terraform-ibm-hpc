@@ -82,14 +82,14 @@ variable "dns_domain_names" {
 variable "compute_public_key_content" {
   type        = string
   sensitive   = true
-  default     = null
+  default     = ""
   description = "Compute security key content."
 }
 
 variable "compute_private_key_content" {
   type        = string
   sensitive   = true
-  default     = null
+  default     = ""
   description = "Compute security key content."
 }
 

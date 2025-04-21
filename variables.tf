@@ -861,3 +861,9 @@ variable "scc_cos_instance_crn" {
   default     = null
   description = "scc cos instance crn"
 }
+
+variable "enable_process_manager" {
+  type        = bool
+  default     = false
+  description = "Enable Process Manager configuration"
+}

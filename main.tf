@@ -131,6 +131,7 @@ module "prepare_tf_input" {
   ldap_user_password                               = var.ldap_user_password
   ldap_server                                      = var.ldap_server
   ldap_server_cert                                 = var.ldap_server_cert
+  enable_process_manager                           = var.enable_process_manager
   scc_enable                                       = var.scc_enable
   scc_profile                                      = var.scc_profile
   scc_location                                     = var.scc_location
@@ -345,6 +346,7 @@ module "compute_playbook" {
   enable_ldap                 = var.enable_ldap
   ldap_server                 = var.ldap_server
   playbooks_path              = local.playbooks_path
+  enable_process_manager      = var.enable_process_manager
   depends_on                  = [module.compute_inventory]
 }
 

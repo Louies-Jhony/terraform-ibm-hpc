@@ -1,5 +1,6 @@
 locals {
   proxyjump             = var.enable_bastion ? "-o ProxyJump=ubuntu@${var.bastion_fip}" : ""
+  process_manager_config = format("%s/process_manager_config.yml", var.playbooks_path)
   ldap_server_inventory = format("%s/ldap_server_inventory.ini", var.playbooks_path)
   configure_ldap_client = format("%s/configure_ldap_client.yml", var.playbooks_path)
   prepare_ldap_server   = format("%s/prepare_ldap_server.yml", var.playbooks_path)
@@ -56,7 +57,7 @@ EOT
 }
 
 resource "null_resource" "run_playbook" {
-  count = var.inventory_path != null ? 1 : 0
+  count = var.inventory_path != null ? 0 : 0
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command     = "systemctl restart NetworkManager && sleep 20s && ansible-playbook -f 50 -i ${var.inventory_path} ${var.playbook_path}"
@@ -67,8 +68,34 @@ resource "null_resource" "run_playbook" {
   depends_on = [local_file.create_playbook]
 }
 
+# Process Manager
+resource "local_file" "create_playbook_for_process_manager" {
+  count    = var.enable_process_manager ? 1 : 0
+  content  = <<EOT
+- name: Process Manager Configuration
+  hosts: localhost
+  any_errors_fatal: true
+  gather_facts: false
+  roles:
+    - process_manager_config
+EOT
+  filename = local.process_manager_config
+}
+
+resource "null_resource" "run_process_manager_playbook" {
+  count = var.enable_process_manager ? 1 : 0
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = "ansible-playbook -i ${var.inventory_path} ${local.process_manager_config}"
+  }
+  triggers = {
+    build = timestamp()
+  }
+  depends_on = [local_file.create_playbook_for_process_manager]
+}
+
 resource "null_resource" "run_lsf_playbooks" {
-  count = var.inventory_path != null ? 1 : 0
+  count = var.inventory_path != null ? 0 : 0
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
@@ -114,7 +141,7 @@ EOT
 
 
 resource "null_resource" "run_playbook_for_mgmt_config" {
-  count = var.inventory_path != null ? 1 : 0
+  count = var.inventory_path != null ? 0 : 0
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command     = "ansible-playbook -i ${var.inventory_path} ${var.lsf_mgmt_playbooks_path}"
