@@ -13,7 +13,7 @@
     ansible.builtin.replace:
       path: "{{ ansible_tool_kit_path }}/roles/deploy-gui/tasks/install_pac.yml"
       regexp: '^( *export MYSQL_JDBC_DRIVER_JAR=.*)$'
-      replace: '\1\n{{ insert_lines | regex_replace("\n", "\\n") | regex_replace("\r", "") }}'
+      replace: '\1\n{{ pm_insert_lines | regex_replace("\n", "\\n") | regex_replace("\r", "") }}'
     when: toolkit_path.stat.exists
 
   - name: Comment stat_js_conf line

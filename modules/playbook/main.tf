@@ -1,6 +1,6 @@
 locals {
   proxyjump             = var.enable_bastion ? "-o ProxyJump=ubuntu@${var.bastion_fip}" : ""
-  process_manager_config = format("%s/process_manager_config.yml", var.playbooks_path)
+  prepare_process_manager = format("%s/prepare_process_manager.yml", var.playbooks_path)
   ldap_server_inventory = format("%s/ldap_server_inventory.ini", var.playbooks_path)
   configure_ldap_client = format("%s/configure_ldap_client.yml", var.playbooks_path)
   prepare_ldap_server   = format("%s/prepare_ldap_server.yml", var.playbooks_path)
@@ -78,16 +78,16 @@ resource "local_file" "create_playbook_for_process_manager" {
   gather_facts: false
   
   roles:
-    - { role: process_manager_config }
+    - { role: prepare_process_manager }
 EOT
-  filename = local.process_manager_config
+  filename = local.prepare_process_manager
 }
 
 resource "null_resource" "run_process_manager_playbook" {
   count = var.enable_process_manager ? 0 : 0
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = "ansible-playbook -i ${var.inventory_path} ${local.process_manager_config}"
+    command     = "ansible-playbook -i ${var.inventory_path} ${local.prepare_process_manager}"
   }
   triggers = {
     build = timestamp()
