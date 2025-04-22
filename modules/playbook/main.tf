@@ -70,7 +70,7 @@ resource "null_resource" "run_playbook" {
 
 # Process Manager
 resource "local_file" "create_playbook_for_process_manager" {
-  count    = var.enable_process_manager ? 1 : 0
+  count    = var.enable_process_manager ? 0 : 1
   content  = <<EOT
 - name: Process Manager Configuration
   hosts: localhost
@@ -84,7 +84,7 @@ EOT
 }
 
 resource "null_resource" "run_process_manager_playbook" {
-  count = var.enable_process_manager ? 1 : 0
+  count = var.enable_process_manager ? 0 : 1
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command     = "ansible-playbook -i ${var.inventory_path} ${local.prepare_process_manager}"
