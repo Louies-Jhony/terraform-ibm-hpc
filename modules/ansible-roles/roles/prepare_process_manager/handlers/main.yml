@@ -1,0 +1,18 @@
+---
+  - name: cleanup_commas_1
+    ansible.builtin.replace:
+      path: "{{ ansible_tool_kit_group_vars }}"
+      regexp: ",\\s*]"
+      replace: "]"
+
+  - name: cleanup_commas_2
+    ansible.builtin.replace:
+      path: "{{ ansible_tool_kit_group_vars }}"
+      regexp: "\\[\\s*,"
+      replace: "["
+
+  - name: cleanup_commas_3
+    ansible.builtin.replace:
+      path: "{{ ansible_tool_kit_group_vars }}"
+      regexp: "\\s*,\\s*]"
+      replace: "]"
