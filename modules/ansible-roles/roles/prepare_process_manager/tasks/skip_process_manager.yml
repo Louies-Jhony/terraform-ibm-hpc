@@ -13,7 +13,7 @@
 - name: Remove 'lsf-pm-server'
   ansible.builtin.replace:
     path: "{{ ansible_tool_kit_group_vars }}"
-    regexp: "'?lsf-pm-server'?,?\\s*"
+    regexp: "(?<=\\[|,)\\s*lsf-pm-server\\s*(?=,|\\])"
     replace: ""
   notify:
     - cleanup_commas_1
@@ -24,7 +24,7 @@
 - name: Remove 'lsf-pm-client'
   ansible.builtin.replace:
     path: "{{ ansible_tool_kit_group_vars }}"
-    regexp: "'?lsf-pm-client'?,?\\s*"
+    regexp: "(?<=\\[|,)\\s*lsf-pm-client\\s*(?=,|\\])"
     replace: ""
   notify:
     - cleanup_commas_1
@@ -43,6 +43,7 @@
           touch ${stream_file}; 
           chown -R lsfadmin ${stream_dir}; 
           chmod 644 ${stream_dir};
+
       {% endraw %}
     marker: "    # {mark} Added stream setup after MYSQL_JDBC_DRIVER_JAR"
     insertafter: 'export MYSQL_JDBC_DRIVER_JAR='
