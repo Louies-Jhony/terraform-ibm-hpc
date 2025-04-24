@@ -1,8 +1,9 @@
 locals {
-  proxyjump             = var.enable_bastion ? "-o ProxyJump=ubuntu@${var.bastion_fip}" : ""
-  ldap_server_inventory = format("%s/ldap_server_inventory.ini", var.playbooks_path)
-  configure_ldap_client = format("%s/configure_ldap_client.yml", var.playbooks_path)
-  prepare_ldap_server   = format("%s/prepare_ldap_server.yml", var.playbooks_path)
+  proxyjump               = var.enable_bastion ? "-o ProxyJump=ubuntu@${var.bastion_fip}" : ""
+  prepare_process_manager = format("%s/prepare_process_manager.yml", var.playbooks_path)
+  ldap_server_inventory   = format("%s/ldap_server_inventory.ini", var.playbooks_path)
+  configure_ldap_client   = format("%s/configure_ldap_client.yml", var.playbooks_path)
+  prepare_ldap_server     = format("%s/prepare_ldap_server.yml", var.playbooks_path)
 }
 
 resource "local_file" "create_playbook" {
@@ -67,6 +68,33 @@ resource "null_resource" "run_playbook" {
   depends_on = [local_file.create_playbook]
 }
 
+# Process Manager
+resource "local_file" "create_playbook_for_process_manager" {
+  count    = var.enable_process_manager ? 0 : 1
+  content  = <<EOT
+- name: Process Manager Configuration
+  hosts: localhost
+  any_errors_fatal: true
+  gather_facts: false
+  
+  roles:
+    - { role: prepare_process_manager }
+EOT
+  filename = local.prepare_process_manager
+}
+
+resource "null_resource" "run_process_manager_playbook" {
+  count = var.enable_process_manager ? 0 : 1
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = "ansible-playbook -i ${var.inventory_path} ${local.prepare_process_manager}"
+  }
+  triggers = {
+    build = timestamp()
+  }
+  depends_on = [local_file.create_playbook_for_process_manager]
+}
+
 resource "null_resource" "run_lsf_playbooks" {
   count = var.inventory_path != null && var.scheduler == "LSF" ? 1 : 0
 
@@ -84,7 +112,7 @@ resource "null_resource" "run_lsf_playbooks" {
     build = timestamp()
   }
 
-  depends_on = [null_resource.run_playbook]
+  depends_on = [null_resource.run_playbook, null_resource.run_process_manager_playbook]
 }
 
 resource "local_file" "create_playbook_for_mgmt_config" {

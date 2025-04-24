@@ -593,3 +593,12 @@ variable "scheduler" {
   default     = null
   description = "Select one of the scheduler (LSF/Symphony/Slurm/null)"
 }
+
+##############################################################################
+# PM Service
+##############################################################################
+variable "enable_process_manager" {
+  type        = bool
+  default     = false
+  description = "Enable Process Manager configuration"
+}

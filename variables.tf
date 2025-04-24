@@ -1043,3 +1043,12 @@ variable "bastion_fip" {
   default     = null
   description = "bastion fip"
 }
+
+##############################################################################
+# PM Service
+##############################################################################
+variable "enable_process_manager" {
+  type        = bool
+  default     = false
+  description = "Enable Process Manager configuration"
+}

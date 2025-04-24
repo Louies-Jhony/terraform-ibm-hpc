@@ -168,6 +168,7 @@ module "prepare_tf_input" {
   filesystem_config                                = var.filesystem_config
   scale_encryption_admin_password                  = var.scale_encryption_admin_password
   scale_encryption_enabled                         = var.scale_encryption_enabled
+  enable_process_manager                           = var.enable_process_manager
   depends_on                                       = [module.deployer]
 }
 
@@ -650,6 +651,7 @@ module "compute_playbook" {
   enable_ldap                 = var.enable_ldap
   ldap_server                 = var.ldap_server
   playbooks_path              = local.playbooks_path
+  enable_process_manager      = var.enable_process_manager
   depends_on                  = [module.compute_inventory]
 }
 

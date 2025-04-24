@@ -81,3 +81,9 @@ variable "scheduler" {
   type        = string
   description = "Select one of the scheduler (LSF/Symphony/Slurm/null)"
 }
+
+variable "enable_process_manager" {
+  type        = bool
+  default     = false
+  description = "Enable Process Manager configuration"
+}

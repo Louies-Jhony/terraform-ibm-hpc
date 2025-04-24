@@ -70,6 +70,7 @@ module "lsf" {
   ldap_server                                      = local.env.ldap_server
   ldap_server_cert                                 = local.env.ldap_server_cert
   ldap_instances                                   = local.env.ldap_instances
+  enable_process_manager                           = local.env.enable_process_manager
 
   # compute_gui_password                             = local.env.compute_gui_password
   # compute_gui_username                             = local.env.compute_gui_username
