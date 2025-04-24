@@ -1,95 +1,100 @@
 ---
+  - name: Check if the LSF installer directory exists
+    ansible.builtin.stat:
+      path: "{{ ansible_tool_kit_path }}"
+    register: toolkit_path
 
-- name: Check if the LSF installer directory exists
-  ansible.builtin.stat:
-    path: "{{ ansible_tool_kit_path }}"
-  register: toolkit_path
+  - name: Fail if the LSF installer directory does not exist
+    ansible.builtin.fail:
+      msg: "ERROR: Directory {{ ansible_tool_kit_path }} does not exist. Please ensure the IBM LSF installer toolkit is present."
+    when: not toolkit_path.stat.exists
 
-- name: Fail if the LSF installer directory does not exist
-  ansible.builtin.fail:
-    msg: "ERROR: Directory {{ ansible_tool_kit_path }} does not exist. Please ensure the IBM LSF installer toolkit is present."
-  when: not toolkit_path.stat.exists
+  - block:
+      - name: Check if file contains lsf-pm-server or lsf-pm-client
+        ansible.builtin.shell: |
+          grep -qE 'lsf-pm-server|lsf-pm-client' "{{ ansible_tool_kit_group_vars }}"
+        register: grep_result
+        ignore_errors: true
 
-- block:
-    - name: Check if file contains lsf-pm-server or lsf-pm-client
-      ansible.builtin.shell: |
-        grep -qE 'lsf-pm-server|lsf-pm-client' "{{ ansible_tool_kit_group_vars }}"
-      register: grep_result
-      ignore_errors: true
+      - name: Remove lsf-pm-server and lsf-pm-client cleanly if PM service is disabled
+        when:
+          - grep_result.rc == 0
+        ansible.builtin.shell: |
+          sed -i.bak \
+            -e 's/\blsf-pm-server\b//g' \
+            -e 's/\blsf-pm-client\b//g' \
+            -e 's/, *]/]/g' \
+            -e 's/\[ *, */[/' \
+            -e 's/, *,/,/g' \
+            -e 's/, \+,/,/g' \
+            -e 's/,]/]/g' \
+            -e 's/\[ *, *]/[]/g' \
+            -e 's/\(,\s*\)\+]/]/g' \
+            "{{ ansible_tool_kit_group_vars }}"
+        args:
+          executable: /bin/bash
 
-    - name: Remove lsf-pm-server and lsf-pm-client cleanly if PM service is disabled
-      when:
-        - grep_result.rc == 0
-      ansible.builtin.shell: |
-        sed -i.bak \
-          -e 's/\blsf-pm-server\b//g' \
-          -e 's/\blsf-pm-client\b//g' \
-          -e 's/, *]/]/g' \
-          -e 's/\[ *, */[/' \
-          -e 's/, *,/,/g' \
-          -e 's/, \+,/,/g' \
-          -e 's/,]/]/g' \
-          -e 's/\[ *, *]/[]/g' \
-          -e 's/\(,\s*\)\+]/]/g' \
-          "{{ ansible_tool_kit_group_vars }}"
-      args:
-        executable: /bin/bash
+      - name: Add stream directory setup after the MYSQL_JDBC_DRIVER_JAR export
+        ansible.builtin.blockinfile:
+          path: "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/install_pac.yml"
+          block: |
+            {% raw %}
+                stream_dir={{ LSF_TOP }}/work/{{ LSF.my_cluster_name }}/logdir/stream
+                stream_file=${stream_dir}/lsb.stream; 
+                mkdir -p ${stream_dir}; 
+                touch ${stream_file}; 
+                chown -R lsfadmin ${stream_dir}; 
+                chmod 644 ${stream_dir};
+            {% endraw %}
+          marker: "    # {mark} Added stream setup after MYSQL_JDBC_DRIVER_JAR"
+          insertafter: 'export MYSQL_JDBC_DRIVER_JAR='
 
-    - name: Add stream directory setup after the MYSQL_JDBC_DRIVER_JAR export
-      ansible.builtin.blockinfile:
-        path: "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/install_pac.yml"
-        block: |
-          {% raw %}
-              stream_dir={{ LSF_TOP }}/work/{{ LSF.my_cluster_name }}/logdir/stream
-              stream_file=${stream_dir}/lsb.stream; 
-              mkdir -p ${stream_dir}; 
-              touch ${stream_file}; 
-              chown -R lsfadmin ${stream_dir}; 
-              chmod 644 ${stream_dir};
-          {% endraw %}
-        marker: "    # {mark} Added stream setup after MYSQL_JDBC_DRIVER_JAR"
-        insertafter: 'export MYSQL_JDBC_DRIVER_JAR='
+      - name: Check if configure_pm.yml task is uncommented
+        ansible.builtin.shell: |
+          grep -q '^[[:space:]]*- include_tasks: configure_pm.yml' "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/configure_master.yml"
+        register: check_pm_include
+        ignore_errors: true
 
-    - name: Check if configure_pm.yml task is uncommented
-      ansible.builtin.shell: |
-        grep -q '^[[:space:]]*- include_tasks: configure_pm.yml' "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/configure_master.yml"
-      register: check_pm_include
-      ignore_errors: true
+      - name: Comment out only the configure_pm.yml task and its when conditions
+        ansible.builtin.shell: |
+          sed -i.bak -E '/^- include_tasks: configure_pm.yml/ {
+            s/^/#/
+            n
+            /^  when:/ {
+              s/^/#/
+              n
+              /^    - stat_js_conf.stat.exists == True/ s/^/#/
+              n
+              /^    - LSF_SUITE_EDITION != .*/ s/^/#/
+            }
+          }' "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/configure_master.yml"
+        args:
+          executable: /bin/bash
+        when: check_pm_include.rc == 0
 
-    - name: Comment out configure_pm.yml task and its conditions
-      ansible.builtin.shell: |
-        sed -i.bak -E '
-          /^\s*- include_tasks: configure_pm.yml/ s/^/#/
-          /^\s*when:/ s/^/#/
-          /^\s*[-#]+\s+stat_js_conf.stat.exists.*/ s/^/#/
-          /^\s*[-#]+\s+LSF_SUITE_EDITION\s*!=.*/ s/^/#/
-        ' "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/configure_master.yml"
-      args:
-        executable: /bin/bash
-      when: check_pm_include.rc == 0
 
-    - name: Comment out the setup_sharedir_ppm task block in post_deploy_primary.yml
-      ansible.builtin.replace:
-        path: "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/post_deploy_primary.yml"
-        regexp: |
-          (?m)^(\s*)- include_tasks: setup_sharedir_ppm\.yml\n\1  when:\n\1    - lsf_shared_dir != "none"\n\1    - LSF_SUITE_EDITION != 'LSF Suite for Workgroup'
-        replace: |
-          \1# - include_tasks: setup_sharedir_ppm.yml
-          \1#   when:
-          \1#     - lsf_shared_dir != "none"
-          \1#     - LSF_SUITE_EDITION != 'LSF Suite for Workgroup'
+      - name: Comment out the setup_sharedir_ppm task block in post_deploy_primary.yml
+        ansible.builtin.replace:
+          path: "{{ ansible_tool_kit_role_path }}/deploy-gui/tasks/post_deploy_primary.yml"
+          regexp: |
+            (?m)^(\s*)- include_tasks: setup_sharedir_ppm\.yml\n\1  when:\n\1    - lsf_shared_dir != "none"\n\1    - LSF_SUITE_EDITION != 'LSF Suite for Workgroup'
+          replace: |
+            \1# - include_tasks: setup_sharedir_ppm.yml
+            \1#   when:
+            \1#     - lsf_shared_dir != "none"
+            \1#     - LSF_SUITE_EDITION != 'LSF Suite for Workgroup'
 
-    - name: Comment out the Configure PM Common script block in main.yml
-      ansible.builtin.replace:
-        path: "{{ ansible_tool_kit_role_path }}/deploy-lsf-clients/tasks/main.yml"
-        regexp: |
-          (?m)^(\s*- name: Call the Configure PM Common script.*\n)(\s*include_tasks: \.\./\.\./deploy-gui/tasks/configure_pm_common\.yml.*\n)(\s*when:.*\n)(\s*- nfs_deployment == False.*\n)(\s*- LSF_SUITE_EDITION != 'LSF Suite for Workgroup'.*\n)(\s*- groups\.GUI_Hosts \| length > 0.*\n)(\s*- inventory_hostname not in groups.GUI_Hosts.*\n)
-        replace: |
-          # \1# \2# \3# \4# \5# \6# \7
+      - name: Comment out the Configure PM Common script block in main.yml
+        ansible.builtin.replace:
+          path: "{{ ansible_tool_kit_role_path }}/deploy-lsf-clients/tasks/main.yml"
+          regexp: |
+            (?m)^(\s*- name: Call the Configure PM Common script.*\n)(\s*include_tasks: \.\./\.\./deploy-gui/tasks/configure_pm_common\.yml.*\n)(\s*when:.*\n)(\s*- nfs_deployment == False.*\n)(\s*- LSF_SUITE_EDITION != 'LSF Suite for Workgroup'.*\n)(\s*- groups\.GUI_Hosts \| length > 0.*\n)(\s*- inventory_hostname not in groups.GUI_Hosts.*\n)
+          replace: |
+            # \1# \2# \3# \4# \5# \6# \7
 
-    - name: Comment out the Configure PM Common script block main task
-      ansible.builtin.replace:
-        path: "{{ ansible_tool_kit_role_path }}/deploy-lsf-clients/tasks/main.yml"
-        regexp: '^\s*- name: Call the Configure PM Common script'
-        replace: '#- name: Call the Configure PM Common script'
-  when: toolkit_path.stat.exists
+      - name: Comment out the Configure PM Common script block main task
+        ansible.builtin.replace:
+          path: "{{ ansible_tool_kit_role_path }}/deploy-lsf-clients/tasks/main.yml"
+          regexp: '^\s*- name: Call the Configure PM Common script'
+          replace: '#- name: Call the Configure PM Common script'
+    when: toolkit_path.stat.exists
