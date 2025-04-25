@@ -16,21 +16,20 @@
         register: grep_result
         ignore_errors: true
 
-      - name: Remove lsf-pm-server and lsf-pm-client cleanly if PM service is disabled
-        when:
-          - grep_result.rc == 0
+      - name: Remove PM entries and clean up formatting
+        when: grep_result.rc == 0
         ansible.builtin.shell: |
           sed -i.bak \
-            -e 's/\blsf-pm-server\b//g' \
-            -e 's/\blsf-pm-client\b//g' \
-            -e 's/, *]/]/g' \
-            -e 's/\[ *, */[/' \
-            -e 's/, *,/,/g' \
-            -e 's/, \+,/,/g' \
-            -e 's/,]/]/g' \
-            -e 's/\[ *, *]/[]/g' \
-            -e 's/\(,\s*\)\+]/]/g' \
-            "{{ ansible_tool_kit_group_vars }}"
+              -e 's/\blsf-pm-server\b//g' \
+              -e 's/\blsf-pm-client\b//g' \
+              -e 's/\[ *, */[/g' \
+              -e 's/, *]/]/g' \
+              -e 's/,\s\+,/,/g' \
+              -e 's/,\s*,/,/g' \
+              -e 's/,\s*]/]/g' \
+              -e 's/\[\s*\]/[]/g' \
+              -e 's/\[\s*,\s*\]/[]/g' \
+              "{{ ansible_tool_kit_group_vars }}"
         args:
           executable: /bin/bash
 
