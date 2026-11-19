@@ -33,6 +33,12 @@ data "ibm_is_vpc_address_prefixes" "existing_vpc_cidr" {
 #   name  = var.existing_resource_group
 # }
 
+# Multi-zone (Scale only): resolve the subnets of every zone from the VPC. The deployer phase receives only the zone-1 subnet IDs.
+data "ibm_is_subnets" "vpc_zone_subnets" {
+  count    = local.use_vpc_zone_subnets ? 1 : 0
+  vpc_name = var.vpc_name
+}
+
 data "ibm_is_subnet" "existing_compute_subnets" {
   count      = var.vpc_name != null && var.compute_subnet_id != null ? 1 : 0
   identifier = var.compute_subnet_id

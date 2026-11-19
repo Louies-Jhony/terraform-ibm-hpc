@@ -8,7 +8,7 @@
    "enable_deployer": true,
    "deployer_instance_profile": "mx2-4x32",
    "login_subnets_cidr": "10.0.0.0/24",
-   "client_subnets_cidr": "10.10.10.0/24",
+   "client_subnets_cidr": ["10.10.10.0/24"],
    "client_instances": [
       {
          "profile": "cx2-2x4",
@@ -16,7 +16,7 @@
          "image": "ibm-redhat-8-10-minimal-amd64-2"
       }
    ],
-   "compute_subnets_cidr": "10.10.20.0/24",
+   "compute_subnets_cidr": ["10.10.20.0/24"],
    "compute_instances": [
       {
          "profile": "cx2-2x4",
@@ -25,7 +25,7 @@
       }
    ],
    "compute_gui_username": "admin",
-   "storage_subnets_cidr": "10.10.30.0/24",
+   "storage_subnets_cidr": ["10.10.30.0/24"],
    "storage_instances": [
       {
          "profile": "cx2-2x4",
@@ -47,7 +47,7 @@
          "image": "ibm-redhat-8-10-minimal-amd64-2"
       }
    ],
-   "protocol_subnets_cidr": "10.10.40.0/24",
+   "protocol_subnets_cidr": ["10.10.40.0/24"],
    "protocol_instances": [
       {
          "profile": "cx2-2x4",

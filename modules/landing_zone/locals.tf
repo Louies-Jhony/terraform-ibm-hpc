@@ -48,9 +48,14 @@ locals {
   bastion_sg_variable_cidr_list = split(",", var.cluster_cidr)
 
   # Address Prefixes calculation
-  address_prefixes = {
+  # Single zone: one prefix covering the whole cluster CIDR in the first zone.
+  # Multi zone: address prefixes of different zones cannot overlap, so every zone gets
+  # a prefix list made of its own subnet CIDRs.
+  address_prefixes = length(local.active_zones) == 1 ? tomap({
     "zone-${element(split("-", var.zones[0]), 2)}" = [local.bastion_sg_variable_cidr_list[0]]
-  }
+    }) : tomap({
+    for zone in local.active_zones : zone => [for subnet in local.subnets[zone] : subnet.cidr]
+  })
 
   # Subnet calculation
   active_subnets = {

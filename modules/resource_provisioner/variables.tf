@@ -3,7 +3,7 @@
 ##############################################################################
 variable "debug_mode" {
   type        = bool
-  default     = false
+  default     = true
   description = "Set to true to skip the cleanup of sensitive deployment files (like tfvars, SSH keys, and scripts) for troubleshooting and debugging purposes."
 }
 

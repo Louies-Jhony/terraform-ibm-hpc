@@ -2,7 +2,7 @@ module "landing_zone" {
   source                                        = "./modules/landing_zone"
   enable_landing_zone                           = var.enable_landing_zone
   scheduler                                     = var.scheduler
-  vpc_cluster_private_subnets_cidr_blocks       = [var.vpc_cluster_private_subnets_cidr_blocks]
+  vpc_cluster_private_subnets_cidr_blocks       = var.compute_subnets_cidr != null ? var.compute_subnets_cidr : [var.vpc_cluster_private_subnets_cidr_blocks]
   cos_instance_name                             = var.cos_instance_name
   bastion_subnet_id                             = local.bastion_subnet_id
   compute_subnet_id                             = local.compute_subnet_id
@@ -630,7 +630,8 @@ module "key_protect_scale" {
 }
 
 module "ldap_configuration" {
-  count                      = var.scheduler == "Scale" && var.enable_deployer == false && var.enable_ldap && var.ldap_server == "null" ? 1 : 0
+  count                      = 0
+#  count                      = var.scheduler == "Scale" && var.enable_deployer == false && var.enable_ldap && var.ldap_server == "null" ? 1 : 0
   source                     = "./modules/common/ldap_configuration"
   turn_on                    = var.enable_ldap
   clone_path                 = var.scale_ansible_repo_clone_path
@@ -651,7 +652,8 @@ module "ldap_configuration" {
 }
 
 module "pre_cluster_setup" {
-  count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
+  count                      = 0
+# count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
   source                          = "./modules/pre_cluster_setup"
   scheduler                       = var.scheduler
   clone_path                      = var.scale_ansible_repo_clone_path
@@ -701,7 +703,8 @@ module "pre_cluster_setup" {
 }
 
 module "compute_cluster_configuration" {
-  count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
+    count                      = 0
+# count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
   source                          = "./modules/common/compute_configuration"
   turn_on                         = (var.create_separate_namespaces == true && local.static_compute_instance_count > 0) ? true : false
   bastion_user                    = jsonencode(var.bastion_user)
@@ -739,7 +742,8 @@ module "compute_cluster_configuration" {
 }
 
 module "storage_cluster_configuration" {
-  count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
+    count                      = 0
+# count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
   source                          = "./modules/common/storage_configuration"
   turn_on                         = (var.create_separate_namespaces == true && local.storage_instance_count > 0) ? true : false
   bastion_user                    = jsonencode(var.bastion_user)
@@ -805,7 +809,8 @@ module "storage_cluster_configuration" {
 }
 
 module "client_configuration" {
-  count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
+    count                      = 0
+# count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
   source                          = "./modules/common/client_configuration"
   turn_on                         = (local.client_instance_count > 0 && var.create_separate_namespaces == true && local.scale_ces_enabled == true) || (local.client_instance_count > 0 && var.create_separate_namespaces == true && var.colocate_protocol_instances) ? true : false
   create_scale_cluster            = var.create_scale_cluster
@@ -826,7 +831,8 @@ module "client_configuration" {
 }
 
 module "remote_mount_configuration" {
-  count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
+    count                      = 0
+# count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
   source                          = "./modules/common/remote_mount_configuration"
   turn_on                         = (local.static_compute_instance_count > 0 && local.storage_instance_count > 0 && var.create_separate_namespaces == true) ? true : false
   create_scale_cluster            = var.create_scale_cluster
@@ -850,7 +856,8 @@ module "remote_mount_configuration" {
 }
 
 module "invoke_compute_network_playbook" {
-  count                           = var.scheduler == "Scale" ? 1 : 0
+    count                      = 0
+# count                           = var.scheduler == "Scale" ? 1 : 0
   source                          = "./modules/common/network_playbook"
   turn_on                         = (var.create_separate_namespaces == true && local.static_compute_instance_count > 0) ? true : false
   create_scale_cluster            = var.create_scale_cluster
@@ -862,7 +869,8 @@ module "invoke_compute_network_playbook" {
 }
 
 module "invoke_storage_network_playbook" {
-  count                           = var.scheduler == "Scale" ? 1 : 0
+    count                      = 0
+# count                           = var.scheduler == "Scale" ? 1 : 0
   source                          = "./modules/common/network_playbook"
   turn_on                         = (var.create_separate_namespaces == true && local.storage_instance_count > 0) ? true : false
   create_scale_cluster            = var.create_scale_cluster
@@ -875,7 +883,8 @@ module "invoke_storage_network_playbook" {
 
 module "encryption_configuration" {
   source                                  = "./modules/common/encryption_configuration"
-  count                                   = var.scheduler == "Scale" && var.enable_deployer == false && var.scale_encryption_enabled && var.scale_encryption_type == "gklm" ? 1 : 0
+    count                      = 0
+# count                                   = var.scheduler == "Scale" && var.enable_deployer == false && var.scale_encryption_enabled && var.scale_encryption_type == "gklm" ? 1 : 0
   turn_on                                 = (var.create_separate_namespaces == true && local.storage_instance_count > 0) ? true : false
   clone_path                              = var.scale_ansible_repo_clone_path
   create_scale_cluster                    = var.create_scale_cluster
@@ -897,7 +906,8 @@ module "encryption_configuration" {
 
 module "key_protect_encryption_configuration" {
   source                          = "./modules/common/key_protect_configuration"
-  count                           = var.scheduler == "Scale" && var.enable_deployer == false && var.scale_encryption_enabled && var.scale_encryption_type == "key_protect" ? 1 : 0
+    count                      = 0
+# count                           = var.scheduler == "Scale" && var.enable_deployer == false && var.scale_encryption_enabled && var.scale_encryption_type == "key_protect" ? 1 : 0
   turn_on                         = (var.create_separate_namespaces == true && local.storage_instance_count > 0) ? true : false
   clone_path                      = var.scale_ansible_repo_clone_path
   create_scale_cluster            = var.create_scale_cluster
@@ -1040,7 +1050,8 @@ module "storage_inventory_hosts" {
 }
 
 module "post_cluster_setup" {
-  count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
+    count                      = 0
+# count                           = var.scheduler == "Scale" && var.enable_deployer == false ? 1 : 0
   turn_on                         = var.create_separate_namespaces
   source                          = "./modules/post_cluster_setup"
   create_scale_cluster            = var.create_scale_cluster

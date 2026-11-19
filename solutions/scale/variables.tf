@@ -39,16 +39,34 @@ variable "ibmcloud_api_key" {
 # Cluster Level Variables
 ##############################################################################
 variable "zones" {
-  description = "Specify the IBM Cloud zone within the chosen region where the IBM Storage scale cluster will be deployed. A single zone input is required, (for example, [\"us-east-1\"]) all the cluster nodes will all be provisioned in this zone.[Learn more](https://cloud.ibm.com/docs/vpc?topic=vpc-creating-a-vpc-in-a-different-region#get-zones-using-the-cli)."
+  description = "Specify the IBM Cloud zone(s) within the chosen region where the IBM Storage Scale cluster will be deployed. Provide one zone (for example, [\"us-east-1\"]) for a single-zone deployment, or two to three zones of the same region (for example, [\"us-east-1\", \"us-east-2\", \"us-east-3\"]) for a multi-zone deployment. In a multi-zone deployment the storage, compute, protocol and client nodes are spread across the zones, and the storage tie-breaker node is placed in the last zone. The login subnet, bastion and deployer are always placed in the first zone. When more than one zone is provided, the subnet CIDR variables (`compute_subnets_cidr`, `storage_subnets_cidr`, `protocol_subnets_cidr` and `client_subnets_cidr`) must contain one non-overlapping CIDR per zone, in the same order as the zones.[Learn more](https://cloud.ibm.com/docs/vpc?topic=vpc-creating-a-vpc-in-a-different-region#get-zones-using-the-cli)."
   type        = list(string)
   default     = ["us-east-1"]
   validation {
-    condition     = length(var.zones) == 1
-    error_message = "Provide a value for a single zone from the supported regions."
+    condition     = length(var.zones) >= 1 && length(var.zones) <= 3
+    error_message = "Provide one to three zones from the supported regions."
   }
   validation {
-    condition     = can(regex("^[a-z]{2}-[a-z]+-[1-3]$", var.zones[0]))
+    condition     = alltrue([for zone in var.zones : can(regex("^[a-z]{2}-[a-z]+-[1-3]$", zone))])
     error_message = "Provide a value from the supported regions."
+  }
+  validation {
+    condition = length(var.zones) == 1 || alltrue([
+      var.login_subnet_id == null,
+      var.compute_subnet_id == null,
+      var.storage_subnet_id == null,
+      var.protocol_subnet_id == null,
+      var.client_subnet_id == null
+    ])
+    error_message = "A multi-zone deployment creates its own subnets (one per zone), so the existing subnet ID inputs (login_subnet_id, compute_subnet_id, storage_subnet_id, protocol_subnet_id and client_subnet_id) are supported only with a single zone."
+  }
+  validation {
+    condition     = length(distinct(var.zones)) == length(var.zones)
+    error_message = "Zones must be unique."
+  }
+  validation {
+    condition     = length(distinct([for zone in var.zones : join("-", slice(split("-", zone), 0, 2))])) == 1
+    error_message = "All zones must belong to the same region."
   }
 }
 
@@ -191,27 +209,50 @@ variable "login_subnets_cidr" {
 }
 
 variable "compute_subnets_cidr" {
-  type        = string
-  default     = "10.241.0.0/20"
-  description = "Provide the CIDR block required for the creation of the compute private subnet. Single CIDR block is required. If using a hybrid environment, modify the CIDR block to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of scale compute nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
+  type        = list(string)
+  default     = ["10.241.0.0/20", "10.241.20.0/22", "10.241.24.0/22"]
+  description = "Provide the CIDR blocks required for the creation of the compute private subnets, one CIDR block per zone in the same order as the zones input (only the first N entries are used for N zones). If using a hybrid environment, modify the CIDR blocks to avoid conflicts with any on-premises CIDR blocks. The CIDR blocks must not overlap each other and must be within the vpc_cidr. Ensure the selected CIDR block size can accommodate the maximum number of scale compute nodes expected in each zone. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
+  validation {
+    condition     = length(var.compute_subnets_cidr) >= length(var.zones) && length(distinct(slice(var.compute_subnets_cidr, 0, length(var.zones)))) == length(var.zones)
+    error_message = "Provide at least one unique CIDR block for each zone in compute_subnets_cidr."
+  }
 }
 
 variable "storage_subnets_cidr" {
-  type        = string
-  default     = "10.241.30.0/24"
-  description = "Provide the CIDR block required for the creation of the storage private subnet. Single CIDR block is required. If using a hybrid environment, modify the CIDR block to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of scale storage nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
+  type        = list(string)
+  default     = ["10.241.30.0/24", "10.241.31.0/24", "10.241.32.0/24"]
+  description = "Provide the CIDR blocks required for the creation of the storage private subnets, one CIDR block per zone in the same order as the zones input (only the first N entries are used for N zones). If using a hybrid environment, modify the CIDR blocks to avoid conflicts with any on-premises CIDR blocks. The CIDR blocks must not overlap each other, must be within the vpc_cidr and, for a multi-zone deployment, must have a different third octet in each zone (for example 10.241.30.0/24 and 10.241.31.0/24) as it is used to assign the storage failure groups. Ensure the selected CIDR block size can accommodate the maximum number of scale storage nodes expected in each zone. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
+  validation {
+    condition     = length(var.storage_subnets_cidr) >= length(var.zones) && length(distinct(slice(var.storage_subnets_cidr, 0, length(var.zones)))) == length(var.zones)
+    error_message = "Provide at least one unique CIDR block for each zone in storage_subnets_cidr."
+  }
+  validation {
+    condition = length(var.zones) == 1 || (
+      length(var.storage_subnets_cidr) >= length(var.zones) &&
+      length(distinct([for cidr in slice(var.storage_subnets_cidr, 0, length(var.zones)) : split(".", cidr)[2]])) == length(var.zones)
+    )
+    error_message = "For a multi-zone deployment the storage subnet CIDR blocks must have a different third octet in each zone (for example 10.241.30.0/24, 10.241.31.0/24 and 10.241.32.0/24)."
+  }
 }
 
 variable "protocol_subnets_cidr" {
-  type        = string
-  default     = "10.241.40.0/24"
-  description = "Provide the CIDR block required for the creation of the protocol private subnet. Single CIDR block is required. If using a hybrid environment, modify the CIDR block to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of protocol nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
+  type        = list(string)
+  default     = ["10.241.40.0/24", "10.241.41.0/24", "10.241.42.0/24"]
+  description = "Provide the CIDR blocks required for the creation of the protocol private subnets, one CIDR block per zone in the same order as the zones input (only the first N entries are used for N zones). Protocol nodes are supported only in a single-zone deployment, so only the first entry is used. If using a hybrid environment, modify the CIDR blocks to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of protocol nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
+  validation {
+    condition     = length(var.protocol_subnets_cidr) >= length(var.zones) && length(distinct(slice(var.protocol_subnets_cidr, 0, length(var.zones)))) == length(var.zones)
+    error_message = "Provide at least one unique CIDR block for each zone in protocol_subnets_cidr."
+  }
 }
 
 variable "client_subnets_cidr" {
-  type        = string
-  default     = "10.241.50.0/24"
-  description = "Provide the CIDR block required for the creation of the client private subnet. Single CIDR block is required. If using a hybrid environment, modify the CIDR block to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of scale client nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
+  type        = list(string)
+  default     = ["10.241.50.0/24", "10.241.51.0/24", "10.241.52.0/24"]
+  description = "Provide the CIDR blocks required for the creation of the client private subnets, one CIDR block per zone in the same order as the zones input (only the first N entries are used for N zones). If using a hybrid environment, modify the CIDR blocks to avoid conflicts with any on-premises CIDR blocks. The CIDR blocks must not overlap each other and must be within the vpc_cidr. Ensure the selected CIDR block size can accommodate the maximum number of scale client nodes expected in each zone. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
+  validation {
+    condition     = length(var.client_subnets_cidr) >= length(var.zones) && length(distinct(slice(var.client_subnets_cidr, 0, length(var.zones)))) == length(var.zones)
+    error_message = "Provide at least one unique CIDR block for each zone in client_subnets_cidr."
+  }
 }
 
 variable "compute_gui_username" {
@@ -274,7 +315,7 @@ variable "compute_instances" {
     ])
     error_message = "Specified count must be 0 or in range 3 to 64"
   }
-  description = "Specify the list of virtual server instances to be provisioned as compute nodes in the cluster. Each object includes the instance profile (machine type), number of instances (count), OS image to use, and an optional filesystem mount path. This configuration allows customization of the compute tier to suit specific performance and workload requirements. The profile must match a valid IBM Cloud VPC Gen2 instance profile format. A minimum of 3 compute nodes is required to form a cluster, and a maximum of 64 nodes is supported. For more details, refer[Instance Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-profiles&interface=ui)."
+  description = "Specify the list of virtual server instances to be provisioned as compute nodes in the cluster. Each object includes the instance profile (machine type), number of instances (count), OS image to use, and an optional filesystem mount path. This configuration allows customization of the compute tier to suit specific performance and workload requirements. The profile must match a valid IBM Cloud VPC Gen2 instance profile format. A minimum of 3 compute nodes is required to form a cluster, and a maximum of 64 nodes is supported. In a multi-zone deployment, the count is applied per zone. For more details, refer[Instance Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-profiles&interface=ui)."
 }
 
 variable "client_instances" {
@@ -303,7 +344,7 @@ variable "client_instances" {
     error_message = "client_instances 'count' value must be between 0 and 2000."
   }
 
-  description = "Specify the list of virtual server instances to be provisioned as client nodes in the cluster. Each object includes the instance profile (machine type), number of instances (count), OS image to use. This configuration allows customization of the compute tier to suit specific performance and workload requirements. The profile must match a valid IBM Cloud VPC Gen2 instance profile format. For more details, refer [Instance Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-profiles&interface=ui)."
+  description = "Specify the list of virtual server instances to be provisioned as client nodes in the cluster. Each object includes the instance profile (machine type), number of instances (count), OS image to use. This configuration allows customization of the compute tier to suit specific performance and workload requirements. The profile must match a valid IBM Cloud VPC Gen2 instance profile format. In a multi-zone deployment, the count is applied per zone. For more details, refer [Instance Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-profiles&interface=ui)."
 }
 
 variable "storage_instances" {
@@ -339,7 +380,7 @@ variable "storage_instances" {
     ]) : true
     error_message = "storage_instances 'count' value must be in range 2 to 64."
   }
-  description = "Specify the list of virtual server instances to be provisioned as storage nodes in the cluster. Each object includes the instance profile (machine type), number of instances (count), OS image to use, and an optional filesystem mount path. This configuration allows customization of the storage tier to suit specific storage performance cluster. The profile must match a valid IBM Cloud VPC Gen2 instance profile format. A minimum of 2 storage nodes is required to form a cluster, and a maximum of 64 nodes is supported. For more details, refer[Instance Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-profiles&interface=ui)."
+  description = "Specify the list of virtual server instances to be provisioned as storage nodes in the cluster. Each object includes the instance profile (machine type), number of instances (count), OS image to use, and an optional filesystem mount path. This configuration allows customization of the storage tier to suit specific storage performance cluster. The profile must match a valid IBM Cloud VPC Gen2 instance profile format. A minimum of 2 storage nodes is required to form a cluster, and a maximum of 64 nodes is supported. In a multi-zone deployment, the count is applied per zone, and the tie-breaker node is placed in the last zone. For more details, refer[Instance Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-profiles&interface=ui)."
 }
 
 variable "storage_baremetal_server" {
@@ -380,7 +421,7 @@ variable "storage_baremetal_server" {
     error_message = "Storage_baremetal_server count should always be an even number."
   }
 
-  description = "Specify the list of bare metal servers to be provisioned for the storage cluster. Each object in the list specifies the server profile (hardware configuration), the count (number of servers), the image (OS image to use), and an optional filesystem mount path. This configuration allows flexibility in scaling and customizing the storage cluster based on performance and capacity requirements. Only valid bare metal profiles supported in IBM Cloud VPC should be used. A minimum of 2 baremetal storage nodes is required to form a cluster, and a maximum of 64 nodes is supported For available bare metal profiles, refer to the [Baremetal Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-bare-metal-servers-profile&interface=ui)."
+  description = "Specify the list of bare metal servers to be provisioned for the storage cluster. Each object in the list specifies the server profile (hardware configuration), the count (number of servers), the image (OS image to use), and an optional filesystem mount path. This configuration allows flexibility in scaling and customizing the storage cluster based on performance and capacity requirements. Only valid bare metal profiles supported in IBM Cloud VPC should be used. A minimum of 2 baremetal storage nodes is required to form a cluster, and a maximum of 64 nodes is supported. In a multi-zone deployment, the count is the total number of servers distributed across the zones in round-robin order, and the tie-breaker node is placed in the last zone. For available bare metal profiles, refer to the [Baremetal Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-bare-metal-servers-profile&interface=ui)."
 }
 
 variable "tie_breaker_baremetal_server_profile" {
@@ -422,6 +463,10 @@ variable "afm_instances" {
     ])
     error_message = "afm_instances 'count' value must be between 0 and 16."
   }
+  validation {
+    condition     = length(var.zones) == 1 || sum(var.afm_instances[*]["count"]) == 0
+    error_message = "AFM nodes are supported only in a single-zone deployment. When more than one zone is specified in 'zones', set the 'count' of afm_instances to 0."
+  }
   description = "Specify the list of virtual server instances to be provisioned as AFM nodes in the cluster. Each object in the list includes the instance profile (machine type), the count (number of instances), the image (OS image to use). This configuration allows you to access remote data  and high-performance computing needs.This input can be used to provision virtual server instances (VSI). If baremetal, high-throughput storage is required, consider using bare metal instances instead. Ensure you provide valid instance profiles. Maximum of 16 afm nodes is supported. For more details, refer to [Instance Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-profiles&interface=ui)."
 }
 
@@ -448,6 +493,10 @@ variable "protocol_instances" {
       for inst in var.protocol_instances : inst.count >= 0 && inst.count <= 32
     ])
     error_message = "protocol_instances 'count' value must be between 0 and 32."
+  }
+  validation {
+    condition     = length(var.zones) == 1 || sum(var.protocol_instances[*]["count"]) == 0
+    error_message = "Protocol nodes are supported only in a single-zone deployment. When more than one zone is specified in 'zones', set the 'count' of protocol_instances to 0."
   }
   description = "Specify the list of virtual server instances to be provisioned as protocol nodes in the cluster. Each object in the list includes the instance profile (machine type), the count (number of instances), the image (OS image to use). This configuration allows allows for a unified data management solution, enabling different clients to access the same data using NFS protocol.This input can be used to provision virtual server instances (VSI). If baremetal, high-throughput storage is required, consider using bare metal instances instead. Ensure you provide valid instance profiles. Maximum of 32 VSI or baremetal nodes are supported. For more details, refer to [Instance Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-profiles&interface=ui)."
 }
@@ -929,7 +978,7 @@ variable "storage_type" {
     error_message = "The solution only support vsi, evaluation, and baremetal; provide any one of the value."
   }
   validation {
-    condition     = var.storage_type == "baremetal" ? contains(["us-south-1", "us-south-2", "us-south-3", "us-east-1", "us-east-2", "eu-de-1", "eu-de-2", "eu-de-3", "eu-gb-1", "eu-es-3", "eu-es-1", "jp-tok-2", "jp-tok-3", "ca-tor-2", "ca-tor-3"], join(",", var.zones)) : true
+    condition     = var.storage_type == "baremetal" ? alltrue([for zone in var.zones : contains(["us-south-1", "us-south-2", "us-south-3", "us-east-1", "us-east-2", "eu-de-1", "eu-de-2", "eu-de-3", "eu-gb-1", "eu-es-3", "eu-es-1", "jp-tok-2", "jp-tok-3", "ca-tor-2", "ca-tor-3"], zone)]) : true
     error_message = "The solution supports bare metal server creation in only given availability zones i.e. us-south-1, us-south-3, us-south-2, eu-de-1, eu-de-2, eu-de-3, jp-tok-2, eu-gb-1, us-east-1, us-east-2, eu-es-3, eu-es-1, jp-tok-3, jp-tok-2, ca-tor-2 and ca-tor-3. To deploy baremetal storage provide any one of the supported availability zones."
   }
 }

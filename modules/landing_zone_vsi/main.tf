@@ -336,7 +336,7 @@ module "storage_cluster_tie_breaker_vsi" {
   enable_floating_ip            = false
   security_group_ids            = var.storage_security_group_name == null ? module.storage_sg[*].security_group_id : local.storage_security_group_name_id
   ssh_key_ids                   = local.ssh_keys
-  subnets                       = local.storage_subnets
+  subnets                       = local.tie_breaker_storage_subnets
   resource_tags                 = local.tags
   user_data                     = data.template_file.storage_user_data.rendered
   vpc_id                        = var.vpc_id
@@ -349,7 +349,7 @@ module "storage_cluster_tie_breaker_vsi" {
   boot_volume_encryption_key    = var.boot_volume_encryption_key
   placement_group_id            = var.placement_group_ids
   secondary_security_groups     = local.enable_sec_interface_storage ? local.storage_secondary_security_group : []
-  secondary_subnets             = local.enable_sec_interface_storage ? local.storage_subnets : []
+  secondary_subnets             = local.enable_sec_interface_storage ? local.tie_breaker_storage_subnets : []
   manage_reserved_ips           = local.enable_sec_interface_storage ? true : false
   depends_on                    = [resource.null_resource.entitlement_check]
 }
@@ -539,8 +539,8 @@ module "storage_baremetal_tie_breaker" {
   scheduler                     = var.scheduler
   existing_resource_group       = var.resource_group
   image_id                      = local.storage_bare_metal_image_mapping_entry_found ? local.storage_bare_metal_image_id : data.ibm_is_image.baremetal_storage[0].id
-  prefix                        = format("%s-%s", local.storage_tie_breaker_node_name, substr(local.storage_subnets[count.index].id, length(local.storage_subnets[count.index].id) - 4, 4))
-  storage_subnets               = [for subnet in local.storage_subnets : subnet.id]
+  prefix                        = format("%s-%s", local.storage_tie_breaker_node_name, substr(local.tie_breaker_storage_subnets[count.index].id, length(local.tie_breaker_storage_subnets[count.index].id) - 4, 4))
+  storage_subnets               = [for subnet in local.tie_breaker_storage_subnets : subnet.id]
   storage_ssh_keys              = local.ssh_keys
   storage_servers               = local.tie_breaker_bm_server
   security_group_ids            = var.storage_security_group_name == null ? module.storage_sg[*].security_group_id : local.storage_security_group_name_id

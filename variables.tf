@@ -48,12 +48,12 @@ variable "cluster_prefix" {
 }
 
 variable "zones" {
-  description = "Specify the IBM Cloud zone within the chosen region where the IBM Spectrum LSF cluster will be deployed. A single zone input is required, and the management nodes, file storage shares, and compute nodes will all be provisioned in this zone.[Learn more](https://cloud.ibm.com/docs/vpc?topic=vpc-creating-a-vpc-in-a-different-region#get-zones-using-the-cli)."
+  description = "Specify the IBM Cloud zone(s) within the chosen region where the cluster will be deployed. LSF and the other HPC schedulers require a single zone. IBM Storage Scale (scheduler = Scale) supports up to three zones of the same region.[Learn more](https://cloud.ibm.com/docs/vpc?topic=vpc-creating-a-vpc-in-a-different-region#get-zones-using-the-cli)."
   type        = list(string)
   default     = ["us-east-1"]
   validation {
-    condition     = length(var.zones) == 1
-    error_message = "HPC product deployment supports only a single zone. Provide a value for a single zone from the supported regions: eu-de-2 or eu-de-3 for eu-de, us-east-1 or us-east-3 for us-east, and us-south-1 for us-south."
+    condition     = var.scheduler == "Scale" ? length(var.zones) >= 1 && length(var.zones) <= 3 : length(var.zones) == 1
+    error_message = "HPC product deployment supports only a single zone. Provide a value for a single zone from the supported regions: eu-de-2 or eu-de-3 for eu-de, us-east-1 or us-east-3 for us-east, and us-south-1 for us-south. IBM Storage Scale supports one to three zones."
   }
 }
 
@@ -206,6 +206,12 @@ variable "vpc_cluster_private_subnets_cidr_blocks" {
   description = "Provide the CIDR block required for the creation of the compute cluster's private subnet. One CIDR block is required. If using a hybrid environment, modify the CIDR block to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of management and dynamic compute nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
 }
 
+
+variable "compute_subnets_cidr" {
+  type        = list(string)
+  default     = null
+  description = "Scale only. Provide one compute subnet CIDR block per zone for a multi-zone deployment. When null, vpc_cluster_private_subnets_cidr_blocks is used as the single compute subnet CIDR block."
+}
 
 variable "management_instances" {
   type = list(

@@ -876,6 +876,30 @@
               ],
               "options": [
                 {
+                  "displayname": "Washington DC (3 zones)",
+                  "value": [
+                    "us-east-1",
+                    "us-east-2",
+                    "us-east-3"
+                  ]
+                },
+                {
+                  "displayname": "Frankfurt (3 zones)",
+                  "value": [
+                    "eu-de-1",
+                    "eu-de-2",
+                    "eu-de-3"
+                  ]
+                },
+                {
+                  "displayname": "Dallas (3 zones)",
+                  "value": [
+                    "us-south-1",
+                    "us-south-2",
+                    "us-south-3"
+                  ]
+                },
+                {
                   "displayname": "Washington DC 1",
                   "value": [
                     "us-east-1"

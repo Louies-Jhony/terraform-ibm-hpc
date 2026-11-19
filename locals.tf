@@ -380,7 +380,15 @@ locals {
 
   use_existing_compute_subnets = var.vpc_name != null && var.compute_subnet_id != null
 
-  compute_subnets = (var.vpc_name == null ? module.landing_zone.compute_subnets :
+  # Multi-zone (Scale only): the deployer phase receives only the zone-1 subnet IDs, so the subnets of all zones are resolved from the VPC.
+  use_vpc_zone_subnets     = var.scheduler == "Scale" && length(var.zones) > 1 && var.vpc_name != null && !var.enable_deployer
+  vpc_zone_subnets_by_name = local.use_vpc_zone_subnets ? { for subnet in data.ibm_is_subnets.vpc_zone_subnets[0].subnets : subnet.name => { cidr = subnet.ipv4_cidr_block, id = subnet.id, name = subnet.name, zone = subnet.zone, crn = subnet.crn } } : {}
+  vpc_zone_subnets         = [for name in sort(keys(local.vpc_zone_subnets_by_name)) : local.vpc_zone_subnets_by_name[name]]
+  vpc_zone_compute_subnets = [for subnet in local.vpc_zone_subnets : subnet if strcontains(subnet.name, "-${lower(var.scheduler)}-compute-subnet-zone-")]
+  vpc_zone_storage_subnets = [for subnet in local.vpc_zone_subnets : subnet if strcontains(subnet.name, "-${lower(var.scheduler)}-storage-subnet-zone-")]
+  vpc_zone_client_subnets  = [for subnet in local.vpc_zone_subnets : subnet if strcontains(subnet.name, "-${lower(var.scheduler)}-client-subnet") || strcontains(subnet.name, "-${lower(var.scheduler)}-ppnlb-subnet")]
+
+  compute_subnets = local.use_vpc_zone_subnets ? local.vpc_zone_compute_subnets : (var.vpc_name == null ? module.landing_zone.compute_subnets :
   (local.use_existing_compute_subnets ? local.existing_compute_subnets : module.landing_zone.compute_subnets))
 
   compute_subnet = length(local.compute_subnets) > 0 ? [for subnet in local.compute_subnets : subnet.id][0] : ""
@@ -447,10 +455,10 @@ locals {
   use_existing_storage_subnets  = var.vpc_name != null && var.storage_subnet_id != null
   use_existing_protocol_subnets = var.vpc_name != null && var.protocol_subnet_id != null
 
-  client_subnets = (var.vpc_name == null ? module.landing_zone.client_subnets :
+  client_subnets = local.use_vpc_zone_subnets ? local.vpc_zone_client_subnets : (var.vpc_name == null ? module.landing_zone.client_subnets :
   (local.use_existing_client_subnets ? local.existing_client_subnets : module.landing_zone.client_subnets))
 
-  storage_subnets = (var.vpc_name == null ? module.landing_zone.storage_subnets :
+  storage_subnets = local.use_vpc_zone_subnets ? local.vpc_zone_storage_subnets : (var.vpc_name == null ? module.landing_zone.storage_subnets :
   (local.use_existing_storage_subnets ? local.existing_storage_subnets : module.landing_zone.storage_subnets))
 
   protocol_subnets = (var.vpc_name == null ? module.landing_zone.protocol_subnets :
@@ -592,7 +600,8 @@ locals {
   existing_protocol_subnet_crns = [for subnet in data.ibm_is_subnet.existing_protocol_subnets : subnet.crn]
   existing_client_subnet_crns   = [for subnet in data.ibm_is_subnet.existing_client_subnets : subnet.crn]
   existing_bastion_subnet_crns  = [for subnet in data.ibm_is_subnet.existing_login_subnets : subnet.crn]
-  subnets_crn                   = concat(local.existing_compute_subnet_crns, local.existing_storage_subnet_crns, local.existing_protocol_subnet_crns, local.existing_client_subnet_crns, local.existing_bastion_subnet_crns)
+  # Multi-zone: one compute subnet per zone for the DNS custom resolver locations (high availability)
+  subnets_crn = local.use_vpc_zone_subnets ? [for subnet in local.vpc_zone_compute_subnets : subnet.crn] : concat(local.existing_compute_subnet_crns, local.existing_storage_subnet_crns, local.existing_protocol_subnet_crns, local.existing_client_subnet_crns, local.existing_bastion_subnet_crns)
   # subnets_crn                 = var.vpc_name == null && var.compute_subnet_id == null ? module.landing_zone.subnets_crn : concat(local.existing_subnet_crns, module.landing_zone.subnets_crn)
   # subnets                     = flatten([local.compute_subnets, local.storage_subnets, local.protocol_subnets])
   # subnets_crns                = data.ibm_is_subnet.itself[*].crn

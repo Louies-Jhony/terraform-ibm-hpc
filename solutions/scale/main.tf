@@ -8,7 +8,8 @@ module "scale" {
   ssh_keys                                      = local.env.ssh_keys
   existing_resource_group                       = local.env.existing_resource_group
   vpc_cluster_login_private_subnets_cidr_blocks = local.env.login_subnets_cidr
-  vpc_cluster_private_subnets_cidr_blocks       = local.env.compute_subnets_cidr
+  vpc_cluster_private_subnets_cidr_blocks       = local.env.compute_subnets_cidr[0]
+  compute_subnets_cidr                          = local.env.compute_subnets_cidr
   cos_instance_name                             = local.env.cos_instance_name
   dns_custom_resolver_id                        = local.env.dns_custom_resolver_id
   dns_instance_id                               = local.env.dns_instance_id
@@ -20,12 +21,12 @@ module "scale" {
   client_instances                              = local.env.client_instances
   vpc_cidr                                      = local.env.vpc_cidr
   protocol_instances                            = local.env.protocol_instances
-  protocol_subnets_cidr                         = [local.env.protocol_subnets_cidr]
+  protocol_subnets_cidr                         = local.env.protocol_subnets_cidr
   colocate_protocol_instances                   = local.env.colocate_protocol_instances
   static_compute_instances                      = local.env.compute_instances
   storage_instances                             = local.env.storage_instances
   storage_servers                               = local.env.storage_baremetal_server
-  storage_subnets_cidr                          = [local.env.storage_subnets_cidr]
+  storage_subnets_cidr                          = local.env.storage_subnets_cidr
   vpc_name                                      = local.env.vpc_name
   compute_gui_password                          = local.env.compute_gui_password
   compute_gui_username                          = local.env.compute_gui_username
@@ -62,7 +63,7 @@ module "scale" {
   existing_bastion_instance_public_ip           = local.env.existing_bastion_instance_public_ip
   existing_bastion_security_group_id            = local.env.existing_bastion_security_group_id
   existing_bastion_ssh_private_key              = local.env.existing_bastion_ssh_private_key
-  client_subnets_cidr                           = [local.env.client_subnets_cidr]
+  client_subnets_cidr                           = local.env.client_subnets_cidr
   bms_boot_drive_encryption                     = local.env.bms_boot_drive_encryption
   tie_breaker_bm_server_profile                 = local.env.tie_breaker_baremetal_server_profile
   filesets_config                               = local.env.filesets_config

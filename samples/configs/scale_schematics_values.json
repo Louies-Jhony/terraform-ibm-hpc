@@ -119,29 +119,29 @@
                 },
                 {
                     "name": "compute_subnets_cidr",
-                    "value": "10.241.0.0/20",
-                    "type": "string",
+                    "value": "[\"10.241.0.0/20\"]",
+                    "type": "list(string)",
                     "secure": false,
                     "description": "Provide the CIDR block required for the creation of the compute private subnet. Single CIDR block is required. If using a hybrid environment, modify the CIDR block to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of scale compute nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
                 },
                 {
                     "name": "storage_subnets_cidr",
-                    "value": "10.241.30.0/24",
-                    "type": "string",
+                    "value": "[\"10.241.30.0/24\"]",
+                    "type": "list(string)",
                     "secure": false,
                     "description": "Provide the CIDR block required for the creation of the storage private subnet. Single CIDR block is required. If using a hybrid environment, modify the CIDR block to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of scale storage nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
                 },
                 {
                     "name": "protocol_subnets_cidr",
-                    "value": "10.241.40.0/24",
-                    "type": "string",
+                    "value": "[\"10.241.40.0/24\"]",
+                    "type": "list(string)",
                     "secure": false,
                     "description": "Provide the CIDR block required for the creation of the protocol private subnet. Single CIDR block is required. If using a hybrid environment, modify the CIDR block to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of protocol nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
                 },
                 {
                     "name": "client_subnets_cidr",
-                    "value": "10.241.50.0/24",
-                    "type": "string",
+                    "value": "[\"10.241.50.0/24\"]",
+                    "type": "list(string)",
                     "secure": false,
                     "description": "Provide the CIDR block required for the creation of the client private subnet. Single CIDR block is required. If using a hybrid environment, modify the CIDR block to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of scale client nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
                 },

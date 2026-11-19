@@ -145,6 +145,9 @@ locals {
   storage_subnets   = var.storage_subnets
   protocol_subnets  = var.protocol_subnets
 
+  # The tie-breaker node is placed in the last zone (the first and only zone in a single zone deployment).
+  tie_breaker_storage_subnets = length(local.storage_subnets) == 0 ? [] : [local.storage_subnets[length(local.storage_subnets) - 1]]
+
   compute_public_key_content  = one(module.compute_key[*].public_key_content)
   compute_private_key_content = one(module.compute_key[*].private_key_content)
 
@@ -180,8 +183,9 @@ locals {
     storage_public_key_content  = var.scheduler == "Scale" ? base64encode(module.storage_key[0].public_key_content) : ""
   }
 
-  enable_sec_interface_compute = local.enable_protocol == false && try(data.ibm_is_instance_profile.compute_profile[0].bandwidth[0].value, 0) >= 64000 ? true : false
-  enable_sec_interface_storage = local.enable_protocol == false && var.storage_type != "baremetal" && data.ibm_is_instance_profile.storage[0].bandwidth[0].value >= 64000 ? true : false
+  # Multi-vNIC VSIs are supported only in a single zone, so the secondary interface is disabled in a multi-zone deployment.
+  enable_sec_interface_compute = length(var.zones) == 1 && local.enable_protocol == false && try(data.ibm_is_instance_profile.compute_profile[0].bandwidth[0].value, 0) >= 64000 ? true : false
+  enable_sec_interface_storage = length(var.zones) == 1 && local.enable_protocol == false && var.storage_type != "baremetal" && data.ibm_is_instance_profile.storage[0].bandwidth[0].value >= 64000 ? true : false
 
   # Security Groups
   protocol_secondary_security_group = distinct(flatten([
@@ -194,8 +198,8 @@ locals {
   ]))
 
   storage_secondary_security_group = distinct(flatten([
-    for subnet_index, subnet in local.storage_subnets : [
-      for i in range(var.static_compute_instances[subnet_index]["count"]) : {
+    for subnet in local.storage_subnets : [
+      for i in range(var.static_compute_instances[0]["count"]) : {
         security_group_id = one(module.storage_sg[*].security_group_id)
         interface_name    = subnet["name"]
       }
