@@ -5,6 +5,7 @@ locals {
   ibm_customer_number                = var.ibm_customer_number == null ? "" : var.ibm_customer_number
   storage_security_group_id          = var.storage_security_group_id == null ? "" : var.storage_security_group_id
   zones                              = jsonencode(var.zones)
+  compute_subnets_cidr               = jsonencode(var.compute_subnets_cidr)
   list_ssh_keys                      = jsonencode(var.ssh_keys)
   list_storage_instances             = jsonencode(var.storage_instances)
   list_storage_servers               = jsonencode(var.storage_servers)

@@ -319,6 +319,30 @@ variable "enable_vpc_flow_logs" {
   description = "Enable Activity tracker"
 }
 
+variable "compute_subnets_cidr" {
+  type        = list(string)
+  default     = null
+  description = "Scale only. One compute subnet CIDR block per zone. When null, vpc_cluster_private_subnets_cidr_blocks is used."
+}
+
+variable "storage_subnets_cidr" {
+  type        = list(string)
+  default     = ["10.241.30.0/24"]
+  description = "One storage subnet CIDR block per zone."
+}
+
+variable "protocol_subnets_cidr" {
+  type        = list(string)
+  default     = ["10.241.40.0/24"]
+  description = "One protocol subnet CIDR block per zone."
+}
+
+variable "client_subnets_cidr" {
+  type        = list(string)
+  default     = ["10.241.50.0/24"]
+  description = "One client subnet CIDR block per zone."
+}
+
 ##############################################################################
 # SCC Variables
 ##############################################################################

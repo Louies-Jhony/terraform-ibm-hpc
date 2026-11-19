@@ -174,6 +174,10 @@ module "prepare_tf_input" {
   cluster_prefix                                   = var.cluster_prefix
   zones                                            = var.zones
   ssh_keys                                         = local.ssh_keys
+  compute_subnets_cidr                             = var.compute_subnets_cidr
+  storage_subnets_cidr                             = var.storage_subnets_cidr
+  protocol_subnets_cidr                            = var.protocol_subnets_cidr
+  client_subnets_cidr                              = var.client_subnets_cidr
   storage_instances                                = var.storage_instances
   storage_servers                                  = var.storage_servers
   storage_type                                     = var.storage_type
