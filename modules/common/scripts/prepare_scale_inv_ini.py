@@ -1082,8 +1082,17 @@ def get_disk_name(disk_mapping, desc_disk_mapping):
     return list(set(disk_names))
 
 
-def get_disks_list(az_count, disk_mapping, desc_disk_mapping, disk_type):
-    """Initialize disk list."""
+def get_disks_list(
+    az_count,
+    disk_mapping,
+    desc_disk_mapping,
+    disk_type,
+    instance_names=None,
+    instance_ips=None,
+):
+    """Initialize disk list.
+    The disk_mapping keys can be instance names, so instance_names and instance_ips
+    (parallel lists) are used to resolve a key to its IP address."""
     disks_list = []
     if disk_type == "locally-attached":
         failureGroup = 0
@@ -1114,10 +1123,23 @@ def get_disks_list(az_count, disk_mapping, desc_disk_mapping, disk_type):
         else:
             # Multi AZ, split based on subnet match
             subnet_pattern = re.compile(r"\d{1,3}\.\d{1,3}\.(\d{1,3})\.\d{1,3}")
-            subnet1A = subnet_pattern.findall(list(disk_mapping)[0])
+            name_to_ip = {
+                str(name).split(".")[0]: ip
+                for name, ip in zip(instance_names or [], instance_ips or [])
+            }
+
+            def get_subnet(key):
+                # Key is either an IP address or an instance name
+                found = subnet_pattern.findall(key)
+                if not found:
+                    found = subnet_pattern.findall(name_to_ip.get(key.split(".")[0], ""))
+                if not found:
+                    raise ValueError(f"Unable to determine the subnet of storage node {key}")
+                return found[0]
+
+            subnet1A = get_subnet(list(disk_mapping)[0])
             for each_ip in disk_mapping:
-                current_subnet = subnet_pattern.findall(each_ip)
-                if current_subnet[0] == subnet1A[0]:
+                if get_subnet(each_ip) == subnet1A:
                     failure_group1.append(each_ip)
                 else:
                     failure_group2.append(each_ip)
@@ -2026,6 +2048,8 @@ if __name__ == "__main__":
             TF["storage_cluster_with_data_volume_mapping"],
             TF["storage_cluster_desc_data_volume_mapping"],
             ARGUMENTS.disk_type,
+            TF["storage_cluster_instance_names"],
+            TF["storage_cluster_instance_private_ips"],
         )
         scale_storage = initialize_scale_storage_details(
             len(TF["vpc_availability_zones"]),
