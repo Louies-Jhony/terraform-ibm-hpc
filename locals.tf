@@ -1061,7 +1061,17 @@ locals {
 
   storage_subnet_cidr = local.storage_instance_count > 0 && var.storage_subnet_id != null ? jsonencode((data.ibm_is_subnet.existing_storage_subnets[*].ipv4_cidr_block)[0]) : ""
   compute_subnet_cidr = local.static_compute_instance_count > 0 && var.compute_subnet_id != null ? jsonencode((data.ibm_is_subnet.existing_compute_subnets[*].ipv4_cidr_block)[0]) : ""
-  client_subnet_cidr  = local.client_instance_count > 0 && var.client_subnet_id != null ? jsonencode((data.ibm_is_subnet.existing_client_subnets[*].ipv4_cidr_block)[0]) : ""
+  # Multi-zone: the NFS export allows a single client network, so it must cover the client subnets of all the zones.
+  # The smallest CIDR block that contains every client subnet is used.
+  client_subnet_cidrs = [for subnet in local.client_subnets : subnet.cidr]
+  client_subnets_supernet = length(local.client_subnet_cidrs) == 0 ? "" : try([
+    for prefix in reverse(range(8, 25)) : "${cidrhost("${split("/", local.client_subnet_cidrs[0])[0]}/${prefix}", 0)}/${prefix}"
+    if alltrue([
+      for cidr in local.client_subnet_cidrs :
+      tonumber(split("/", cidr)[1]) >= prefix && cidrhost("${split("/", cidr)[0]}/${prefix}", 0) == cidrhost("${split("/", local.client_subnet_cidrs[0])[0]}/${prefix}", 0)
+    ])
+  ][0], local.client_subnet_cidrs[0])
+  client_subnet_cidr = local.client_instance_count > 0 ? (local.use_vpc_zone_subnets ? jsonencode(local.client_subnets_supernet) : (var.client_subnet_id != null ? jsonencode((data.ibm_is_subnet.existing_client_subnets[*].ipv4_cidr_block)[0]) : "")) : ""
 
   compute_memory               = ((var.scheduler == "LSF" && var.enable_baremetal == false) || (var.scheduler == "Scale")) ? try(data.ibm_is_instance_profile.compute_profile[0].memory[0].value, 0) : 0
   compute_vcpus_count          = ((var.scheduler == "LSF" && var.enable_baremetal == false) || (var.scheduler == "Scale")) ? try(data.ibm_is_instance_profile.compute_profile[0].vcpu_count[0].value, 0) : 0
