@@ -111,6 +111,13 @@ data "ibm_is_bare_metal_server_profile" "protocol_bm_profile" {
 data "ibm_is_subnet_reserved_ips" "protocol_subnet_reserved_ips" {
   count  = var.enable_deployer == false && local.scale_ces_enabled == true ? 1 : 0
   subnet = local.protocol_subnet
+
+  lifecycle {
+    precondition {
+      condition     = local.protocol_subnet != ""
+      error_message = "Protocol nodes are enabled, but no protocol subnet was found in the VPC. The protocol subnets are created together with the VPC, so protocol_instances must have a count greater than 0 when the VPC is first created (or re-apply the VPC creation phase with the new protocol_instances value before deploying the cluster)."
+    }
+  }
 }
 
 data "ibm_is_instance_profile" "afm_server_profile" {
