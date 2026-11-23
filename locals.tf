@@ -309,6 +309,14 @@ locals {
     }
   ]
 
+  simplified_protocol_vsi_data = var.enable_deployer ? [] : [
+    for outer in flatten(module.landing_zone_vsi[0].protocol_vsi_data) :
+    { id           = try(outer.id, null),
+      ipv4_address = try(outer.ipv4_address, try(outer.primary_network_interface_detail.primary_ipv4_address, null)),
+      name         = try(outer.name, null)
+    }
+  ]
+
   simplified_afm_vsi_data = var.enable_deployer ? [] : [
     for outer in flatten(module.landing_zone_vsi[0].afm_vsi_data) :
     { id           = try(outer.id, null),
@@ -327,7 +335,7 @@ locals {
   storage_instances     = var.enable_deployer ? [] : local.simplified_storage_vsi_data
   storage_servers       = var.enable_deployer ? [] : flatten([module.landing_zone_vsi[0].storage_bms_data])
   storage_tie_brkr_bm   = var.enable_deployer ? [] : flatten([module.landing_zone_vsi[0].storage_tie_breaker_bms_data])
-  protocol_instances    = var.enable_deployer ? [] : flatten([module.landing_zone_vsi[0].protocol_vsi_data])
+  protocol_instances    = var.enable_deployer ? [] : local.simplified_protocol_vsi_data
   protocol_bm_instances = var.enable_deployer ? [] : flatten([module.landing_zone_vsi[0].protocol_bms_data])
   gklm_instances        = var.enable_deployer ? [] : flatten([module.landing_zone_vsi[0].gklm_vsi_data])
   client_instances      = var.enable_deployer ? [] : local.simplified_client_vsi_data
