@@ -190,5 +190,20 @@ systemctl restart NetworkManager
 
 ###### TODO: Fix Me ######
 echo "IC_REGION=${vpc_region}" >> /etc/environment
-echo "IC_SUBNET=${protocol_subnets}" >> /etc/environment
+# Each protocol node uses the protocol subnet of its own zone: pick the subnet that contains the eth1 address
+IC_SUBNET_ID="${protocol_subnets}"
+if [ -n "${protocol_subnet_map}" ]; then
+  MATCHED_SUBNET_ID=$(python3 - "$ETH1_IP" "${protocol_subnet_map}" <<'PYEOF'
+import ipaddress, sys
+ip = ipaddress.ip_address(sys.argv[1])
+for entry in sys.argv[2].split(","):
+    cidr, _, subnet_id = entry.partition("=")
+    if cidr and ip in ipaddress.ip_network(cidr, strict=False):
+        print(subnet_id)
+        break
+PYEOF
+)
+  if [ -n "$MATCHED_SUBNET_ID" ]; then IC_SUBNET_ID="$MATCHED_SUBNET_ID"; fi
+fi
+echo "IC_SUBNET=$IC_SUBNET_ID" >> /etc/environment
 echo "IC_RG=${resource_group_id}" >> /etc/environment

@@ -353,8 +353,8 @@ module "storage_dns_records" {
 module "protocol_reserved_ip" {
   count                   = var.scheduler == "Scale" && var.enable_deployer == false && var.protocol_subnet_id != null ? 1 : 0
   source                  = "./modules/protocol_reserved_ip"
-  total_reserved_ips      = local.protocol_instance_count
-  subnet_id               = [local.protocol_subnets[0].id]
+  total_reserved_ips      = local.protocol_ces_node_count
+  subnet_id               = local.protocol_ces_subnet_ids
   name                    = format("%s-ces", var.cluster_prefix)
   protocol_domain         = var.dns_domain_names["protocol"]
   protocol_dns_service_id = local.dns_instance_id
@@ -559,7 +559,7 @@ module "write_storage_scale_cluster_inventory" {
   nfs                                              = local.scale_ces_enabled == true ? true : false
   object                                           = false
   interface                                        = []
-  export_ip_pool                                   = local.scale_ces_enabled == true ? values(one(module.protocol_reserved_ip[*].instance_name_ip_map)) : []
+  export_ip_pool                                   = local.scale_ces_enabled == true ? one(module.protocol_reserved_ip[*].ordered_ips) : []
   filesystem                                       = local.scale_ces_enabled == true ? jsonencode("cesSharedRoot") : jsonencode("")
   mountpoint                                       = local.scale_ces_enabled == true ? jsonencode(local.filesystem_mountpoint) : jsonencode("")
   protocol_gateway_ip                              = jsonencode(local.protocol_subnet_gateway_ip)

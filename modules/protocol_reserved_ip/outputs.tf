@@ -14,3 +14,9 @@ output "reserved_ip_id_ip_map" {
   description = "Reserved name and its ip map"
   depends_on  = [ibm_dns_resource_record.a_itself, ibm_dns_resource_record.ptr_itself]
 }
+
+output "ordered_ips" {
+  value       = try([for idx in range(var.total_reserved_ips) : ibm_is_subnet_reserved_ip.itself[tostring(idx)].address], [])
+  description = "Reserved ips in creation order (zone-major), so that they can be matched with the protocol nodes."
+  depends_on  = [ibm_dns_resource_record.a_itself, ibm_dns_resource_record.ptr_itself]
+}

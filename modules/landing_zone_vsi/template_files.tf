@@ -185,6 +185,7 @@ data "template_file" "protocol_user_data" {
     vpc_region                  = var.vpc_region
     resource_group_id           = var.resource_group
     protocol_subnets            = local.enable_protocol ? (length(local.protocol_subnets) > 0 ? local.protocol_subnets[0].id : "") : ""
+    protocol_subnet_map         = local.enable_protocol ? join(",", [for subnet in local.protocol_subnets : "${subnet.cidr}=${subnet.id}"]) : ""
     protocol_instance_eth1_mtu  = var.protocol_instance_eth1_mtu
 
   }

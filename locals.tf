@@ -381,12 +381,13 @@ locals {
   use_existing_compute_subnets = var.vpc_name != null && var.compute_subnet_id != null
 
   # Multi-zone (Scale only): the deployer phase receives only the zone-1 subnet IDs, so the subnets of all zones are resolved from the VPC.
-  use_vpc_zone_subnets     = var.scheduler == "Scale" && length(var.zones) > 1 && var.vpc_name != null && !var.enable_deployer
-  vpc_zone_subnets_by_name = local.use_vpc_zone_subnets ? { for subnet in data.ibm_is_subnets.vpc_zone_subnets[0].subnets : subnet.name => { cidr = subnet.ipv4_cidr_block, id = subnet.id, name = subnet.name, zone = subnet.zone, crn = subnet.crn } } : {}
-  vpc_zone_subnets         = [for name in sort(keys(local.vpc_zone_subnets_by_name)) : local.vpc_zone_subnets_by_name[name]]
-  vpc_zone_compute_subnets = [for subnet in local.vpc_zone_subnets : subnet if strcontains(subnet.name, "-${lower(var.scheduler)}-compute-subnet-zone-")]
-  vpc_zone_storage_subnets = [for subnet in local.vpc_zone_subnets : subnet if strcontains(subnet.name, "-${lower(var.scheduler)}-storage-subnet-zone-")]
-  vpc_zone_client_subnets  = [for subnet in local.vpc_zone_subnets : subnet if strcontains(subnet.name, "-${lower(var.scheduler)}-client-subnet") || strcontains(subnet.name, "-${lower(var.scheduler)}-ppnlb-subnet")]
+  use_vpc_zone_subnets      = var.scheduler == "Scale" && length(var.zones) > 1 && var.vpc_name != null && !var.enable_deployer
+  vpc_zone_subnets_by_name  = local.use_vpc_zone_subnets ? { for subnet in data.ibm_is_subnets.vpc_zone_subnets[0].subnets : subnet.name => { cidr = subnet.ipv4_cidr_block, id = subnet.id, name = subnet.name, zone = subnet.zone, crn = subnet.crn } } : {}
+  vpc_zone_subnets          = [for name in sort(keys(local.vpc_zone_subnets_by_name)) : local.vpc_zone_subnets_by_name[name]]
+  vpc_zone_compute_subnets  = [for subnet in local.vpc_zone_subnets : subnet if strcontains(subnet.name, "-${lower(var.scheduler)}-compute-subnet-zone-")]
+  vpc_zone_storage_subnets  = [for subnet in local.vpc_zone_subnets : subnet if strcontains(subnet.name, "-${lower(var.scheduler)}-storage-subnet-zone-")]
+  vpc_zone_protocol_subnets = [for subnet in local.vpc_zone_subnets : subnet if strcontains(subnet.name, "-${lower(var.scheduler)}-protocol-subnet-zone-")]
+  vpc_zone_client_subnets   = [for subnet in local.vpc_zone_subnets : subnet if strcontains(subnet.name, "-${lower(var.scheduler)}-client-subnet") || strcontains(subnet.name, "-${lower(var.scheduler)}-ppnlb-subnet")]
 
   compute_subnets = local.use_vpc_zone_subnets ? local.vpc_zone_compute_subnets : (var.vpc_name == null ? module.landing_zone.compute_subnets :
   (local.use_existing_compute_subnets ? local.existing_compute_subnets : module.landing_zone.compute_subnets))
@@ -461,8 +462,14 @@ locals {
   storage_subnets = local.use_vpc_zone_subnets ? local.vpc_zone_storage_subnets : (var.vpc_name == null ? module.landing_zone.storage_subnets :
   (local.use_existing_storage_subnets ? local.existing_storage_subnets : module.landing_zone.storage_subnets))
 
-  protocol_subnets = (var.vpc_name == null ? module.landing_zone.protocol_subnets :
+  protocol_subnets = local.use_vpc_zone_subnets ? local.vpc_zone_protocol_subnets : (var.vpc_name == null ? module.landing_zone.protocol_subnets :
   (local.use_existing_protocol_subnets ? local.existing_protocol_subnets : module.landing_zone.protocol_subnets))
+
+  # Protocol (CES) nodes are created per zone, like the storage nodes. The reserved CES IPs are grouped by zone
+  # (zone-major order, the same order as the protocol nodes) so that every node gets an IP of its own zone subnet.
+  protocol_subnets_by_name = { for subnet in local.protocol_subnets : subnet.name => subnet }
+  protocol_ces_node_count  = local.protocol_instance_count * length(var.zones)
+  protocol_ces_subnet_ids  = flatten([for name in sort(keys(local.protocol_subnets_by_name)) : [for i in range(local.protocol_instance_count) : local.protocol_subnets_by_name[name].id]])
 
   # update the subnet_id
   storage_subnet  = length(local.storage_subnets) > 0 ? [for subnet in local.storage_subnets : subnet.id][0] : ""
@@ -926,8 +933,8 @@ locals {
 
   scale_ces_enabled               = local.protocol_instance_count > 0 ? true : false
   is_colocate_protocol_subset     = local.scale_ces_enabled && var.colocate_protocol_instances ? local.protocol_instance_count < local.storage_instance_count ? true : false : false
-  enable_sec_interface_compute    = local.scale_ces_enabled == false && try(data.ibm_is_instance_profile.compute_profile[0].bandwidth[0].value, 0) >= 64000 ? true : false
-  enable_sec_interface_storage    = local.scale_ces_enabled == false && var.storage_type != "baremetal" && data.ibm_is_instance_profile.storage_profile.bandwidth[0].value >= 64000 ? true : false
+  enable_sec_interface_compute    = length(var.zones) == 1 && local.scale_ces_enabled == false && try(data.ibm_is_instance_profile.compute_profile[0].bandwidth[0].value, 0) >= 64000 ? true : false
+  enable_sec_interface_storage    = length(var.zones) == 1 && local.scale_ces_enabled == false && var.storage_type != "baremetal" && data.ibm_is_instance_profile.storage_profile.bandwidth[0].value >= 64000 ? true : false
   enable_mrot_conf                = local.enable_sec_interface_compute && local.enable_sec_interface_storage ? true : false
   enable_afm                      = local.afm_instance_count > 0 ? true : false
   scale_afm_bucket_config_details = module.landing_zone.scale_afm_bucket_config_details
@@ -982,7 +989,7 @@ locals {
     ),
     0,
     min(
-      local.protocol_instance_count,
+      local.protocol_ces_node_count,
       length(
         concat(
           local.protocol_instance_names,

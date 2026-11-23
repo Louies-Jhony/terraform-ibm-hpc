@@ -193,8 +193,8 @@ locals {
 
   # Security Groups
   protocol_secondary_security_group = distinct(flatten([
-    for subnet_index, subnet in local.protocol_subnets : [
-      for i in range(var.protocol_instances[subnet_index]["count"]) : {
+    for subnet in local.protocol_subnets : [
+      for i in range(var.protocol_instances[0]["count"]) : {
         security_group_id = one(var.storage_security_group_name == null ? module.storage_sg[*].security_group_id : local.storage_security_group_name_id)
         interface_name    = subnet["name"]
       }

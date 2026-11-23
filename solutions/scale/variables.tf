@@ -238,7 +238,7 @@ variable "storage_subnets_cidr" {
 variable "protocol_subnets_cidr" {
   type        = list(string)
   default     = ["10.241.40.0/24", "10.241.41.0/24", "10.241.42.0/24"]
-  description = "Provide the CIDR blocks required for the creation of the protocol private subnets, one CIDR block per zone in the same order as the zones input (only the first N entries are used for N zones). Protocol nodes are supported only in a single-zone deployment, so only the first entry is used. If using a hybrid environment, modify the CIDR blocks to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of protocol nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
+  description = "Provide the CIDR blocks required for the creation of the protocol private subnets, one CIDR block per zone in the same order as the zones input (only the first N entries are used for N zones). If using a hybrid environment, modify the CIDR blocks to avoid conflicts with any on-premises CIDR blocks. Ensure the selected CIDR block size can accommodate the maximum number of protocol nodes expected in your cluster. For more information on CIDR block size selection, refer to the documentation, see [Choosing IP ranges for your VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-choosing-ip-ranges-for-your-vpc)."
   validation {
     condition     = length(var.protocol_subnets_cidr) >= length(var.zones) && length(distinct(slice(var.protocol_subnets_cidr, 0, length(var.zones)))) == length(var.zones)
     error_message = "Provide at least one unique CIDR block for each zone in protocol_subnets_cidr."
@@ -495,16 +495,20 @@ variable "protocol_instances" {
     error_message = "protocol_instances 'count' value must be between 0 and 32."
   }
   validation {
-    condition     = length(var.zones) == 1 || sum(var.protocol_instances[*]["count"]) == 0
-    error_message = "Protocol nodes are supported only in a single-zone deployment. When more than one zone is specified in 'zones', set the 'count' of protocol_instances to 0."
+    condition     = length(var.zones) == 1 || sum(var.protocol_instances[*]["count"]) == 0 || alltrue([for inst in var.protocol_instances : !strcontains(inst.profile, "metal")])
+    error_message = "In a multi-zone deployment protocol nodes are supported only as dedicated virtual server instances. Use a virtual server (non baremetal) profile in protocol_instances."
   }
-  description = "Specify the list of virtual server instances to be provisioned as protocol nodes in the cluster. Each object in the list includes the instance profile (machine type), the count (number of instances), the image (OS image to use). This configuration allows allows for a unified data management solution, enabling different clients to access the same data using NFS protocol.This input can be used to provision virtual server instances (VSI). If baremetal, high-throughput storage is required, consider using bare metal instances instead. Ensure you provide valid instance profiles. Maximum of 32 VSI or baremetal nodes are supported. For more details, refer to [Instance Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-profiles&interface=ui)."
+  description = "Specify the list of virtual server instances to be provisioned as protocol nodes in the cluster. Each object in the list includes the instance profile (machine type), the count (number of instances), the image (OS image to use). This configuration allows allows for a unified data management solution, enabling different clients to access the same data using NFS protocol.This input can be used to provision virtual server instances (VSI). If baremetal, high-throughput storage is required, consider using bare metal instances instead. Ensure you provide valid instance profiles. Maximum of 32 VSI or baremetal nodes are supported. In a multi-zone deployment, the count is applied per zone (only dedicated virtual server instances are supported), and each zone should have at least two protocol nodes so that the CES IP addresses can fail over inside the zone. For more details, refer to [Instance Profiles](https://cloud.ibm.com/docs/vpc?topic=vpc-profiles&interface=ui)."
 }
 
 variable "colocate_protocol_instances" {
   type        = bool
   default     = true
   description = "Enable this option to colocate protocol services on the same virtual server instances used for storage. When set to true, the storage nodes will also act as protocol nodes for reducing the need for separate infrastructure. This can optimize resource usage and simplify the cluster setup, especially for smaller environments or cost-sensitive deployments. For larger or performance-intensive workloads, consider deploying dedicated protocol instances instead."
+  validation {
+    condition     = length(var.zones) == 1 || var.colocate_protocol_instances == false
+    error_message = "In a multi-zone deployment protocol services are not colocated on the storage nodes. Set colocate_protocol_instances to false and use dedicated protocol_instances."
+  }
   validation {
     condition     = anytrue([var.colocate_protocol_instances == true && var.storage_type != "baremetal" && sum(var.protocol_instances[*]["count"]) <= sum(var.storage_instances[*]["count"]), var.colocate_protocol_instances == true && var.storage_type == "baremetal" && sum(var.protocol_instances[*]["count"]) <= sum(var.storage_baremetal_server[*]["count"]), var.colocate_protocol_instances == false])
     error_message = "When colocation is true, protocol instance count should always be less than or equal to storage instance count"
