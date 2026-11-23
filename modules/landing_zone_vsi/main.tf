@@ -242,7 +242,7 @@ module "compute_cluster_management_vsi" {
   enable_floating_ip            = false
   security_group_ids            = var.compute_security_group_name == null ? module.compute_sg[*].security_group_id : local.compute_security_group_name_id
   ssh_key_ids                   = local.ssh_keys
-  subnets                       = local.compute_subnet_id
+  subnets                       = local.management_compute_subnets
   resource_tags                 = local.tags
   user_data                     = data.template_file.scale_compute_user_data.rendered
   vpc_id                        = var.vpc_id
@@ -254,7 +254,7 @@ module "compute_cluster_management_vsi" {
   boot_volume_encryption_key    = var.boot_volume_encryption_key
   placement_group_id            = var.placement_group_ids
   secondary_security_groups     = local.enable_sec_interface_compute ? local.storage_secondary_security_group : []
-  secondary_subnets             = local.enable_sec_interface_compute ? local.storage_subnets : []
+  secondary_subnets             = local.enable_sec_interface_compute ? local.management_storage_subnets : []
   manage_reserved_ips           = local.enable_sec_interface_compute ? true : false
 }
 
@@ -306,7 +306,7 @@ module "storage_cluster_management_vsi" {
   enable_floating_ip            = false
   security_group_ids            = var.storage_security_group_name == null ? module.storage_sg[*].security_group_id : local.storage_security_group_name_id
   ssh_key_ids                   = local.ssh_keys
-  subnets                       = local.storage_subnets
+  subnets                       = local.management_storage_subnets
   resource_tags                 = local.tags
   user_data                     = data.template_file.storage_user_data.rendered
   vpc_id                        = var.vpc_id
@@ -318,7 +318,7 @@ module "storage_cluster_management_vsi" {
   boot_volume_encryption_key    = var.boot_volume_encryption_key
   placement_group_id            = var.placement_group_ids
   secondary_security_groups     = local.enable_sec_interface_storage ? local.storage_secondary_security_group : []
-  secondary_subnets             = local.enable_sec_interface_storage ? local.storage_subnets : []
+  secondary_subnets             = local.enable_sec_interface_storage ? local.management_storage_subnets : []
   manage_reserved_ips           = local.enable_sec_interface_storage ? true : false
 }
 

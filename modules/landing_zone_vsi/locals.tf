@@ -145,6 +145,10 @@ locals {
   storage_subnets   = var.storage_subnets
   protocol_subnets  = var.protocol_subnets
 
+  # The management nodes are not zone redundant: a single node is placed in the first zone.
+  management_compute_subnets = length(local.compute_subnet_id) == 0 ? [] : [local.compute_subnet_id[0]]
+  management_storage_subnets = length(local.storage_subnets) == 0 ? [] : [local.storage_subnets[0]]
+
   # The tie-breaker node is placed in the last zone (the first and only zone in a single zone deployment).
   tie_breaker_storage_subnets = length(local.storage_subnets) == 0 ? [] : [local.storage_subnets[length(local.storage_subnets) - 1]]
 
